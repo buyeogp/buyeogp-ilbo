@@ -1,0 +1,15 @@
+{
+  "name": "buyeogp-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "부여GP 돈사 일보 시스템 API — 검증 룰 · 권한 · 일보 PDF 생성 · SSE",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "pdf": "node src/pdf/render.js",
+    "pdf:all": "node src/pdf/render-all.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.10.0"
+  }
+}

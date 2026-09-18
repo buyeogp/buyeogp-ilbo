@@ -1,0 +1,25 @@
+# 환경 변수 — 비밀번호·키가 들어간다
+.env
+infra/.env
+*.env
+# 견본은 올린다 (부정 규칙은 반드시 해당 무시 규칙보다 뒤에 와야 한다)
+!*.env.example
+
+# 원천 자료 — 300MB 이상이고 농장 실명·개인정보가 들어 있다
+자료들/
+
+# 백업
+infra/backups/
+*.dump
+
+# Node
+node_modules/
+api/out/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store

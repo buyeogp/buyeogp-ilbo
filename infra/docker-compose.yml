@@ -1,0 +1,130 @@
+# =====================================================================
+# 부여GP 일보 시스템 — 앱 서버 (서울 리전 VM 1대)
+#
+#   기본        docker compose up -d              caddy + api
+#   마이그레이션 docker compose --profile tools run --rm migrate
+#   psql 접속    docker compose --profile tools run --rm psql
+#   백업        docker compose --profile tools run --rm backup
+#   로컬 검증    docker compose --profile localdb up -d localdb
+#
+# DB 는 Supabase(서울)에 있고 이 파일은 DB 를 띄우지 않는다.
+# localdb 프로파일은 스키마를 실행 검증할 때만 쓰는 임시 Postgres 다.
+# =====================================================================
+
+name: buyeogp
+
+services:
+  # ── 리버스 프록시 · 자동 HTTPS ───────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-ilbo.example.co.kr}
+    depends_on:
+      - api
+
+  # ── API 서버 — 검증 룰 · 권한 · PDF 생성 · SSE (설계문서 §7.1) ───
+  # PDF 는 Puppeteer 로 굽는다. 여기가 그 Chromium 이 도는 유일한 자리다.
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # 앱은 buyeogp_app 소속 계정으로 붙는다 — RLS 가 적용되는 쪽
+      DATABASE_URL: >-
+        postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}
+    expose:
+      - "3000"
+    # Puppeteer 가 /dev/shm 을 크게 쓴다. 기본 64MB 로는 대량 PDF 에서 죽는다
+    shm_size: "512mb"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ── 스키마 적용 (1회성) ──────────────────────────────────────────
+  migrate:
+    image: postgres:17-alpine
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      PGPASSWORD: ${DB_MIGRATE_PASSWORD}
+    volumes:
+      - ../db:/db:ro
+    working_dir: /db
+    entrypoint: ["psql"]
+    command:
+      - "-v"
+      - "ON_ERROR_STOP=1"
+      - "-h"
+      - "${DB_HOST}"
+      - "-p"
+      - "${DB_PORT}"
+      - "-U"
+      - "${DB_MIGRATE_USER}"
+      - "-d"
+      - "${DB_NAME}"
+      - "-f"
+      - "000_run_all.sql"
+
+  # ── 유지보수 psql ────────────────────────────────────────────────
+  psql:
+    image: postgres:17-alpine
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      PGPASSWORD: ${DB_MIGRATE_PASSWORD}
+    volumes:
+      - ../db:/db:ro
+    working_dir: /db
+    entrypoint: ["psql"]
+    command: ["-h", "${DB_HOST}", "-p", "${DB_PORT}", "-U", "${DB_MIGRATE_USER}", "-d", "${DB_NAME}"]
+
+  # ── 야간 논리 백업 (§6.6 보존 3년) ───────────────────────────────
+  # Supabase Pro 의 PITR 은 보존 7일이라 HACCP 3년 요건을 덮지 못한다.
+  # 호스트 cron 에서 하루 한 번 호출한다 (README 6절).
+  backup:
+    image: postgres:17-alpine
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      PGPASSWORD: ${DB_MIGRATE_PASSWORD}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - ./backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "/backup.sh"]
+
+  # ── 로컬 검증 전용 Postgres ──────────────────────────────────────
+  # 스키마가 실제로 올라가는지 확인할 때만 띄운다. 운영과 무관하다.
+  localdb:
+    image: postgres:17-alpine
+    profiles: ["localdb"]
+    environment:
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-localdev}
+      POSTGRES_DB: buyeogp
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - localdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d buyeogp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  caddy_data:
+  caddy_config:
+  localdb_data:
