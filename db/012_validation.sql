@@ -13,7 +13,8 @@ SET search_path = app, sec, extensions, public;
 CREATE FUNCTION app.fn_validate_report(p_report_id bigint)
 RETURNS TABLE (rule_code text, severity exception_severity,
                pen_id bigint, pen_code text, message text)
-LANGUAGE plpgsql STABLE AS $$
+LANGUAGE plpgsql STABLE
+SET search_path = app, sec, extensions, public AS $$
 DECLARE
   rep record;
 BEGIN
@@ -161,7 +162,8 @@ COMMENT ON FUNCTION app.fn_validate_report IS
 -- 상태 전이 게이트
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_report_status_guard() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE
   v_blocks int;
   v_first  text;
@@ -209,7 +211,8 @@ CREATE TRIGGER trg_report_status BEFORE UPDATE OF status ON daily_report
 -- L4 : 이상 탐지 (§5.6) — 확정 후 실행하여 예외큐에 적재
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_detect_anomalies(p_farm_id bigint, p_date date)
-RETURNS int LANGUAGE plpgsql AS $$
+RETURNS int LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE
   -- §5.6 임계값
   c_mortality_rate   numeric := 0.01;   -- 일 폐사율 1% (회신 80번 정상 범위)
@@ -424,7 +427,8 @@ COMMENT ON FUNCTION app.fn_detect_anomalies IS
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_day_close_gate(p_farm_id bigint, p_date date)
 RETURNS TABLE (rule_code text, message text)
-LANGUAGE plpgsql STABLE AS $$
+LANGUAGE plpgsql STABLE
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   -- 1. 전 돈사 일보 확정
   RETURN QUERY
@@ -469,7 +473,8 @@ END $$;
 
 -- 마감 시 게이트를 통과하지 못하면 거부하고, 통과하면 전 돈사 일보를 locked 로 바꾼다
 CREATE FUNCTION app.fn_day_close_guard() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE v_cnt int; v_first text;
 BEGIN
   SELECT count(*), min(message) INTO v_cnt, v_first

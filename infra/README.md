@@ -10,16 +10,23 @@ Supabase(서울) + 앱 서버 1대로 구현한다.
         │ /api
 [앱 서버 1대 · 서울]  Caddy → API (검증 룰 · 권한 · PDF · SSE)
         │ 5432 direct
-[Supabase Pro · 서울] PostgreSQL 17 · Storage · 백업/PITR · pg_cron
+[Supabase · 서울]     PostgreSQL 17 · Storage · pg_cron  (개발 Free / 운영 Pro)
 ```
 
-| 부품 | 역할 | 월 비용 |
-|---|---|---:|
-| Supabase Pro (ap-northeast-2) | DB · 파일 · 백업 | $25 |
-| 앱 서버 VM 2GB (서울) | API · **PDF 생성** · SSE | $12 |
-| Cloudflare Pages / DNS | 프론트 · 도메인 | $0 |
-| Sentry · NCP Mailer · 스테이징 Supabase | 관측 · 메일 · 검증 | $0 |
-| | | **약 $37** |
+| 부품 | 역할 | 개발 | 운영 |
+|---|---|---:|---:|
+| Supabase (ap-northeast-2) | DB · 파일 · 백업 | $0 (Free) | $25 (Pro) |
+| 앱 서버 VM 2GB (서울) | API · **PDF 생성** · SSE | $12 | $12 |
+| Cloudflare Pages / DNS | 프론트 · 도메인 | $0 | $0 |
+| Sentry · NCP Mailer · 스테이징 Supabase | 관측 · 메일 · 검증 | $0 | $0 |
+| | | **$12** | **약 $37** |
+
+**개발 단계는 Supabase Free 로 시작한다.** 이 시스템이 쓰는 기능 중 Pro 전용은 없다 —
+`CREATE ROLE` 역할 분리, `btree_gist`, RLS, Storage, `pg_cron` 모두 Free 에서 동작하고
+데이터도 과거 4주치가 수십 MB 라 500MB 한도에 한참 못 미친다.
+Free 에 없는 것은 자동 백업·PITR 과 7일 무활동 시 일시정지 둘뿐인데,
+스키마는 `db/*.sql`, 과거 데이터는 `db/migration/*.csv` 에 있어 날아가도 10분이면 복구된다.
+플랜은 나중에 올려도 같은 프로젝트가 그대로 Pro 가 되고 연결 문자열도 바뀌지 않는다.
 
 **앱 서버가 필요한 이유** — 설계문서 §6.5 가 요구하는 HACCP 일보 PDF 는
 Puppeteer(Chromium)로 굽는다. Cloudflare Workers·Supabase Edge Functions(Deno)
@@ -30,11 +37,11 @@ Puppeteer(Chromium)로 굽는다. Cloudflare Workers·Supabase Edge Functions(De
 
 ## 1. Supabase 프로젝트
 
-1. 새 프로젝트 · 리전 **Northeast Asia (Seoul)** · 플랜 **Pro**
+1. 새 프로젝트 · 리전 **Northeast Asia (Seoul)** · 플랜 **Free** (운영 전환 때 Pro 로 올린다)
 2. Settings → Database → Connection string → **Direct connection (5432)** 복사
    - 풀러(6543)는 쓰지 않는다. 동시 접속이 7명 수준이라 불필요하고,
      직접 연결이어야 `buyeogp_app` 역할 분리(SoD-3)가 유지된다
-3. Settings → Database → **Point in Time Recovery** 활성화
+3. Settings → Database → **Point in Time Recovery** — Pro 전용이라 개발 중에는 건너뛴다
 
 ## 2. 스키마 적용
 
@@ -113,8 +120,11 @@ docker compose up -d
 
 ## 6. 백업 — 여기가 가장 중요하다
 
-**Supabase Pro 의 자동 백업·PITR 은 보존 7일이다. 설계문서 §6.6 의 「보존 3년」을
-덮지 못한다.** 야간 논리 백업을 별도로 남겨야 한다.
+**Free 에는 자동 백업이 아예 없고, Pro 로 올려도 PITR 보존은 7일이다.
+설계문서 §6.6 의 「보존 3년」을 어느 쪽도 덮지 못한다.** 야간 논리 백업을 별도로 남겨야 한다.
+
+개발 중에는 이 cron 을 걸지 않아도 된다 — 스키마와 과거 데이터가 저장소에 있어
+재생성이 가능하기 때문이다. **운영 전환 시점에는 반드시 건다.**
 
 ```bash
 # 호스트 crontab — 매일 03:10
@@ -138,7 +148,8 @@ docker compose up -d
 
 병행운영 4주(설계문서 M4) 동안 실데이터와 대조할 환경이다.
 
-- Supabase 무료 프로젝트 1개 (서울)
+- Supabase 무료 프로젝트 1개 (서울). **무료는 조직당 2개까지**라 개발 1 + 스테이징 1 이면 한도에 맞는다.
+  운영만 Pro 로 올리고 나머지를 Free 로 남기려면 조직을 나눠야 한다 — 플랜이 프로젝트가 아니라 조직 단위다
 - 앱 서버는 **같은 VM 에 컨테이너만 분리** (`COMPOSE_PROJECT_NAME=buyeogp_stg`, 다른 포트)
 - 비용 0
 

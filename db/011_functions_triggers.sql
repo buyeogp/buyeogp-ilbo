@@ -19,19 +19,23 @@ SET search_path = app, sec, extensions, public;
 -- 0. 세션 헬퍼
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.session_user_id() RETURNS bigint
-LANGUAGE sql STABLE AS
+LANGUAGE sql STABLE
+SET search_path = app, sec, extensions, public AS
 $$ SELECT NULLIF(current_setting('app.user_id', true), '')::bigint $$;
 
 CREATE FUNCTION app.is_migration() RETURNS boolean
-LANGUAGE sql STABLE AS
+LANGUAGE sql STABLE
+SET search_path = app, sec, extensions, public AS
 $$ SELECT COALESCE(current_setting('app.migration', true), '') = 'on' $$;
 
 CREATE FUNCTION app.is_adjusting() RETURNS boolean
-LANGUAGE sql STABLE AS
+LANGUAGE sql STABLE
+SET search_path = app, sec, extensions, public AS
 $$ SELECT COALESCE(NULLIF(current_setting('app.adjustment_id', true), ''), '') <> '' $$;
 
 CREATE FUNCTION app.is_syncing() RETURNS boolean
-LANGUAGE sql STABLE AS
+LANGUAGE sql STABLE
+SET search_path = app, sec, extensions, public AS
 $$ SELECT COALESCE(current_setting('app.sync', true), '') = 'on' $$;
 
 -- 일령 / 주차 (§4.2)
@@ -47,7 +51,8 @@ $$ SELECT CASE WHEN p_birth IS NULL THEN NULL ELSE (p_on - p_birth) / 7 END $$;
 -- 1. 공통 트리거
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_touch_updated_at() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
@@ -108,7 +113,8 @@ END $$;
 -- 2. V5 — 전일 미확정 상태의 익일 입력 차단 (P8)
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_v5_prev_day_confirmed() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE r record;
 BEGIN
   IF app.is_migration() OR NEW.is_baseline THEN RETURN NEW; END IF;
@@ -136,7 +142,8 @@ CREATE TRIGGER trg_v5 BEFORE INSERT ON daily_report
 -- 3. V2 — 전일두수 자동 이월 · 수정 불가
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_pen_daily_before() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE
   v_rep    record;
   v_prev   int;
@@ -205,7 +212,8 @@ CREATE TRIGGER trg_pen_daily_before BEFORE INSERT OR UPDATE ON pen_daily
 -- ─────────────────────────────────────────────────────────────────────
 -- 돈방에 돈군이 하나뿐이면 batch_id 를 자동으로 채운다 (회신 113번: 복수 batch 가능)
 CREATE FUNCTION app.fn_resolve_batch() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE v_ids bigint[];
 BEGIN
   -- 돈방 단위가 아닌 돈사(종부·임신사·계류장)는 돈군을 추정하지 않는다
@@ -239,7 +247,8 @@ CREATE TRIGGER trg_resolve_batch BEFORE INSERT ON culling
 CREATE FUNCTION app.fn_recount_pen_daily(
   p_kind text, p_house_id bigint, p_pen_id bigint,
   p_batch_id bigint, p_category_id bigint, p_date date)
-RETURNS void LANGUAGE plpgsql AS $$
+RETURNS void LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   IF p_house_id IS NULL OR p_date IS NULL THEN RETURN; END IF;
   PERFORM set_config('app.sync', 'on', true);
@@ -276,7 +285,8 @@ BEGIN
 END $$;
 
 CREATE FUNCTION app.fn_sync_pen_daily_counts() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   IF TG_OP <> 'INSERT' THEN
     PERFORM app.fn_recount_pen_daily(TG_TABLE_NAME, OLD.house_id, OLD.pen_id,
@@ -298,7 +308,8 @@ CREATE TRIGGER trg_sync_counts AFTER INSERT OR UPDATE OR DELETE ON culling
 -- 5. V8 / L3 — 이동 1:N 대사
 -- ─────────────────────────────────────────────────────────────────────
 CREATE FUNCTION app.fn_movement_recalc() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE
   v_mid  bigint := COALESCE(NEW.movement_id, OLD.movement_id);
   v_sum  int;
@@ -333,7 +344,8 @@ CREATE TRIGGER trg_movement_recalc
 
 -- SoD-5 / SoD-6 : 발신자와 수령자가 같으면 예외큐에 적재한다 (§6.3)
 CREATE FUNCTION app.fn_sod5_check() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE m record;
 BEGIN
   IF NEW.received_by IS NULL THEN RETURN NULL; END IF;
@@ -365,7 +377,7 @@ CREATE FUNCTION app.fn_withdrawal_until(
   p_farm_id bigint, p_pen_id bigint, p_batch_id bigint,
   p_sow_id bigint, p_date date)
 RETURNS TABLE (until_date date, medicine_name text)
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = app, sec, extensions, public AS $$
   SELECT u.withdrawal_until, m.name
     FROM medicine_usage u
     JOIN medicine m ON m.id = u.medicine_id
@@ -381,7 +393,8 @@ LANGUAGE sql STABLE AS $$
 $$;
 
 CREATE FUNCTION app.fn_medicine_usage_before() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE v_days int;
 BEGIN
   SELECT withdrawal_days INTO v_days FROM medicine WHERE id = NEW.medicine_id;
@@ -402,7 +415,8 @@ CREATE TRIGGER trg_medicine_usage_before BEFORE INSERT OR UPDATE ON medicine_usa
 
 -- shipment 과 culling 은 컬럼 구성이 다르므로 jsonb 로 공통 추출한다
 CREATE FUNCTION app.fn_v9_withdrawal_guard() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE
   w       record;
   v_row   jsonb  := to_jsonb(NEW);
@@ -464,7 +478,8 @@ CREATE TRIGGER trg_v9 BEFORE INSERT OR UPDATE ON culling
 -- ─────────────────────────────────────────────────────────────────────
 -- 미등록 이각번호는 신규 개체로 자동 생성한다 (§4.6.3 운영 중 축적)
 CREATE FUNCTION app.fn_ensure_sow(p_farm_id bigint, p_ear_tag text)
-RETURNS bigint LANGUAGE plpgsql AS $$
+RETURNS bigint LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE v_id bigint;
 BEGIN
   SELECT id INTO v_id FROM sow WHERE farm_id = p_farm_id AND ear_tag = p_ear_tag;
@@ -476,7 +491,8 @@ BEGIN
 END $$;
 
 CREATE FUNCTION app.fn_ensure_boar(p_farm_id bigint, p_ear_tag text)
-RETURNS bigint LANGUAGE plpgsql AS $$
+RETURNS bigint LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 DECLARE v_id bigint;
 BEGIN
   IF p_ear_tag IS NULL THEN RETURN NULL; END IF;
@@ -491,7 +507,7 @@ END $$;
 -- 오타와 신규를 구분하기 위한 유사 번호 제시 (한 자리 차이) — §4.6.3
 CREATE FUNCTION app.fn_similar_ear_tags(p_farm_id bigint, p_ear_tag text)
 RETURNS TABLE (ear_tag text, status sow_status)
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = app, sec, extensions, public AS $$
   SELECT s.ear_tag, s.status
     FROM sow s
    WHERE s.farm_id = p_farm_id
@@ -507,7 +523,8 @@ COMMENT ON FUNCTION app.fn_similar_ear_tags IS
    2129 를 2139 로 잘못 친 경우를 이 지점에서 잡는다 (§4.6.3)';
 
 CREATE FUNCTION app.fn_breeding_before() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   IF NEW.sow_id IS NULL THEN
     NEW.sow_id := app.fn_ensure_sow(NEW.farm_id, NEW.sow_ear_tag);
@@ -521,7 +538,8 @@ CREATE TRIGGER trg_breeding_before BEFORE INSERT OR UPDATE ON breeding
   FOR EACH ROW EXECUTE FUNCTION app.fn_breeding_before();
 
 CREATE FUNCTION app.fn_farrowing_before() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   IF NEW.sow_id IS NULL THEN
     NEW.sow_id := app.fn_ensure_sow(NEW.farm_id, NEW.sow_ear_tag);
@@ -550,7 +568,8 @@ CREATE TRIGGER trg_farrowing_before BEFORE INSERT OR UPDATE ON farrowing
   FOR EACH ROW EXECUTE FUNCTION app.fn_farrowing_before();
 
 CREATE FUNCTION app.fn_mating_line_before() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   SELECT farm_id INTO NEW.farm_id FROM breeding WHERE id = NEW.breeding_id;
   IF NEW.boar_id IS NULL AND NEW.boar_ear_tag IS NOT NULL THEN
@@ -563,7 +582,8 @@ CREATE TRIGGER trg_mating_line_before BEFORE INSERT OR UPDATE ON mating_line
   FOR EACH ROW EXECUTE FUNCTION app.fn_mating_line_before();
 
 CREATE FUNCTION app.fn_abortion_before() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   SELECT farm_id, mating_date INTO NEW.farm_id, NEW.mating_date
     FROM breeding WHERE id = NEW.breeding_id;
@@ -575,7 +595,8 @@ CREATE TRIGGER trg_abortion_before BEFORE INSERT ON abortion
 
 -- 유산 등록 시 교배 건의 결과를 함께 갱신한다
 CREATE FUNCTION app.fn_abortion_after() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = app, sec, extensions, public AS $$
 BEGIN
   UPDATE breeding
      SET outcome = '유산', outcome_date = NEW.abortion_date

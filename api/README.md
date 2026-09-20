@@ -8,6 +8,11 @@ HACCP 임계경로에 있기 때문에 먼저 했다.
 
 ```
 api/
+  src/db/
+    migrate.js         스키마 적용 (psql 없이 Node 로)
+    verify.js          동작 검증 43건
+    load-m3.js         과거 자료 적재
+    setup-app-role.js  앱 계정 생성 + RLS 실제 적용 확인
   src/pdf/
     layout.js      일보 HTML 생성 — 3종 레이아웃
     styles.js      인쇄용 CSS (A4 가로, mm 단위)
@@ -16,6 +21,23 @@ api/
     sample.js      판독한 실제 일보에서 샘플 데이터 생성
   out/             출력물 (git 제외)
 ```
+
+## DB 도구
+
+이 장비에 psql 도 Docker 도 없어서 Node 로 만들었다. 하는 일은 psql 과 같고,
+백엔드가 어차피 `pg` 를 쓰므로 버리는 작업이 아니다.
+
+```bash
+npm run migrate        # db/001~017 을 하나의 트랜잭션으로 적용
+npm run migrate:reset  # 스키마를 지우고 다시 (개발 전용, 데이터 있으면 --force 필요)
+npm run verify         # 트리거·생성열·RLS 가 실제로 동작하는지 43건
+npm run load:m3        # 과거 4주치 3,681행 적재 + 엑셀 대조
+npm run setup:role     # buyeogp_api 생성, RLS 가 정말 걸리는지 확인
+```
+
+접속 정보는 `infra/.env` 에서 읽는다. Supabase 직접 연결은 IPv6 전용이라
+**Session pooler(IPv4)** 를 쓴다 — Transaction pooler 와 달리 세션 상태를 유지해서
+`SET LOCAL app.user_id` 와 커스텀 역할이 그대로 동작한다.
 
 ## 왜 서버에서 PDF 를 만드는가
 

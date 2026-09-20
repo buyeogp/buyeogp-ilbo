@@ -95,7 +95,26 @@ SELECT dr.id, h.farm_id, h.id, s.report_date,
   JOIN app.daily_report dr ON dr.house_id = h.id AND dr.report_date = s.report_date
   LEFT JOIN app.pen p ON p.house_id = h.id AND p.code = s.pen_code AND s.pen_code <> ''
   LEFT JOIN app.pig_category c ON c.code = s.category_code AND s.category_code <> ''
+ -- 물리적으로 불가능한 행은 넣지 않는다 (P7 오류는 저장되지 않는다 / V3).
+ -- 원본은 m3_daily_raw 에 그대로 남으므로 잃는 정보는 없다.
+ WHERE s.opening_head + s.in_head
+       >= s.out_head + s.internal_out_head + s.sold_head + s.dead_head
 ON CONFLICT DO NOTHING;
+
+-- ── 적재하지 못한 행 ─────────────────────────────────────────────────
+-- 재고보다 많이 빼낸 것으로 적혀 있어 당일두수가 음수가 되는 행이다.
+-- 현행 엑셀은 이런 값을 그대로 계산해 두고 아무도 발견하지 못했다.
+CREATE TABLE IF NOT EXISTS app.m3_rejected AS
+SELECT s.*,
+       s.opening_head + s.in_head
+       - (s.out_head + s.internal_out_head + s.sold_head + s.dead_head) AS computed_closing,
+       'V3 재고 초과 출고 — 당일두수가 음수가 된다'::text AS reason
+  FROM app.m3_daily_raw s
+ WHERE s.opening_head + s.in_head
+       < s.out_head + s.internal_out_head + s.sold_head + s.dead_head;
+
+COMMENT ON TABLE app.m3_rejected IS
+  '과거 자료 중 시스템이 받아들일 수 없는 행. 현장 확인 대상이다 (§9 M3)';
 
 COMMIT;
 

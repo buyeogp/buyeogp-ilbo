@@ -4,12 +4,20 @@
   "private": true,
   "type": "module",
   "description": "부여GP 돈사 일보 시스템 API — 검증 룰 · 권한 · 일보 PDF 생성 · SSE",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "migrate": "node src/db/migrate.js",
+    "migrate:reset": "node src/db/migrate.js --reset",
+    "verify": "node src/db/verify.js",
+    "load:m3": "node src/db/load-m3.js",
+    "setup:role": "node src/db/setup-app-role.js",
     "pdf": "node src/pdf/render.js",
     "pdf:all": "node src/pdf/render-all.js"
   },
   "dependencies": {
+    "pg": "^8.23.0",
     "puppeteer-core": "^24.10.0"
   }
 }

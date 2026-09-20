@@ -23,6 +23,7 @@ BEGIN;
 \ir 015_seed_master.sql
 \ir 016_seed_pen.sql
 \ir 017_seed_medicine_feed.sql
+\ir 018_storage_buckets.sql
 
 COMMIT;
 

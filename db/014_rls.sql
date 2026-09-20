@@ -70,7 +70,7 @@ $$;
 
 -- 전 돈사 접근 등급 : farm_manager / hq_staff / hq_manager / auditor
 CREATE FUNCTION app.is_farm_wide() RETURNS boolean
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = app, sec, extensions, public AS $$
   SELECT app.has_role('farm_manager','hq_staff','hq_manager','auditor');
 $$;
 
@@ -98,12 +98,12 @@ $$;
 
 -- 담당 돈사이거나 전 돈사 등급이면 참
 CREATE FUNCTION app.can_write_house(p_house_id bigint) RETURNS boolean
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = app, sec, extensions, public AS $$
   SELECT app.has_role('team_lead','farm_manager') AND app.can_see_house(p_house_id);
 $$;
 
 CREATE FUNCTION app.pen_house(p_pen_id bigint) RETURNS bigint
-LANGUAGE sql STABLE AS $$ SELECT house_id FROM app.pen WHERE id = p_pen_id $$;
+LANGUAGE sql STABLE SET search_path = app, sec, extensions, public AS $$ SELECT house_id FROM app.pen WHERE id = p_pen_id $$;
 
 -- ── RLS 적용 ─────────────────────────────────────────────────────────
 -- 마스터 : 자기 농장만 조회. 쓰기는 마스터 관리 권한자
@@ -152,7 +152,9 @@ BEGIN
     'feed_delivery','weaning','breeding','mating_line','breeding_action',
     'farrowing','abortion','parity_record','piglet_transfer',
     'sow','boar','shipment','exception_queue','adjustment','day_close',
-    'breeding_stock_grading','medicine_request','medicine_receipt','purchase_order']
+    'breeding_stock_grading','medicine_request','medicine_receipt','purchase_order',
+    -- 실행 검증에서 누락이 드러난 것들. 전부 farm_id 를 들고 있다
+    'house_category','movement_schedule','feed_stock_monthly','medicine_stock_monthly']
   LOOP
     EXECUTE format('ALTER TABLE app.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format(
@@ -171,6 +173,36 @@ DROP POLICY p_day_close_write ON day_close;
 CREATE POLICY p_day_close_write ON day_close FOR ALL
   USING (app.can_see_farm(farm_id) AND app.has_role('hq_manager'))
   WITH CHECK (app.can_see_farm(farm_id) AND app.has_role('hq_manager'));
+
+-- ── 일보에 딸린 테이블 ───────────────────────────────────────────────
+-- farm_id 가 없고 daily_report 를 통해 테넌트가 정해진다. 부모를 따라간다.
+ALTER TABLE report_comment       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE submission_signature ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY p_report_comment_all ON report_comment FOR ALL
+  USING (EXISTS (SELECT 1 FROM daily_report d
+                  WHERE d.id = report_id AND app.can_see_farm(d.farm_id)))
+  WITH CHECK (EXISTS (SELECT 1 FROM daily_report d
+                  WHERE d.id = report_id AND app.can_see_farm(d.farm_id)));
+
+CREATE POLICY p_submission_sig_read ON submission_signature FOR SELECT
+  USING (EXISTS (SELECT 1 FROM daily_report d
+                  WHERE d.id = report_id AND app.can_see_farm(d.farm_id)));
+CREATE POLICY p_submission_sig_insert ON submission_signature FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM daily_report d
+                  WHERE d.id = report_id AND app.can_see_farm(d.farm_id)));
+-- 서명은 증거다. 남긴 뒤에는 고치거나 지울 수 없다 (§6.5)
+COMMENT ON TABLE submission_signature IS
+  '출력물과 시스템 데이터가 동일함을 증명한다. 로그인 세션 + content_hash (§6.5).
+   UPDATE·DELETE 정책을 두지 않아 RLS 아래에서는 추가만 가능하다';
+
+-- ── 의도적으로 RLS 를 걸지 않는 테이블 ───────────────────────────────
+-- 전 농장 공용 마스터 : farm · owner · pig_category · reason_code · supplier
+--                       vaccine · vaccine_schedule · medicine · feed
+--                       feed_price_history · market_price
+-- 부모에 종속된 라인   : medicine_request_line · medicine_receipt_line
+--                       purchase_order_line
+-- 이들은 테넌트 구분이 없거나 부모 행을 통해서만 도달한다.
 
 -- 감사자는 어떤 테이블에도 쓰지 못한다 (GRANT 로 이미 차단, 정책으로 재확인)
 -- 정산·출하는 본사 등급만 조회 (§6.2 출하·정산 조회 행)
