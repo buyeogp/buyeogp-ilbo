@@ -50,6 +50,15 @@ export const config = {
     max: Number(env.DB_POOL_MAX ?? 10),
   },
 
+  // 계정 관리 화면 전용 연결. 업무 데이터가 GRANT 되어 있지 않은 계정이라
+  // 「계정을 고치는 코드가 일보를 읽을 수 없다」가 DB 로 강제된다 (SoD-3).
+  // 없으면 계정 관리 화면만 막힌다 — 일보는 그대로 돈다. need() 를 쓰지 않는 이유다.
+  dbAdmin: {
+    user: env.DB_ADMIN_USER ?? '',
+    password: env.DB_ADMIN_PASSWORD ?? '',
+    get configured() { return !!(this.user && this.password); },
+  },
+
   session: {
     cookie: 'buyeogp_sid',
     // §6.7 세션 만료 — 현장 15분 / 본사 30분

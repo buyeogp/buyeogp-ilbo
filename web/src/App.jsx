@@ -5,13 +5,16 @@
  * 그래서 여기서는 「보여 줄 것을 고르는」 일만 한다.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, today } from './api.js';
 import { Login } from './pages/Login.jsx';
 import { DailyReport } from './pages/DailyReport.jsx';
 import { HouseStatus } from './pages/HouseStatus.jsx';
+import { Admin } from './pages/Admin.jsx';
+import { Help } from './pages/Help.jsx';
 
 const FARM_WIDE = ['farm_manager', 'hq_staff', 'hq_manager', 'auditor'];
+const HQ = ['hq_staff', 'hq_manager'];
 
 export function App() {
   const [me, setMe] = useState(undefined);   // undefined = 확인 중, null = 미로그인
@@ -60,6 +63,8 @@ function Shell({ me, onSignedOut }) {
                                        onChanged={() => loadStatus(date)} />} />
           <Route path="/status/:date"
                  element={<StatusRoute me={me} onDate={setDate} />} />
+          <Route path="/admin" element={<Admin me={me} />} />
+          <Route path="/help" element={<Help />} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </main>
@@ -70,6 +75,10 @@ function Shell({ me, onSignedOut }) {
 function TopBar({ me, houses, date, farmWide, onSignedOut }) {
   const nav = useNavigate();
   const { houseId } = useParams();
+  // 「관리자」는 직책이 아니라 부여되는 권한이다 — 팀장이 함께 가질 수 있다
+  const canAdmin = me.user.roles.some((r) => r === 'admin' || HQ.includes(r));
+
+  const loc = useLocation();
 
   async function signOut() {
     try { await api.logout(); } finally { onSignedOut(); }
@@ -101,6 +110,14 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
       )}
 
       <span className="spacer" />
+      <nav className="house-tabs" style={{ flex: '0 0 auto' }}>
+        {canAdmin && (
+          <button onClick={() => nav('/admin')}
+                  aria-current={loc.pathname === '/admin'}>계정 관리</button>
+        )}
+        <button onClick={() => nav('/help')}
+                aria-current={loc.pathname === '/help'}>설명서</button>
+      </nav>
       <span className="who">
         <b>{me.user.name}</b> · {me.user.roles.map(roleName).join('·')}
       </span>

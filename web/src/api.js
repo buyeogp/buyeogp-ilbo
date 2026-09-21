@@ -48,7 +48,24 @@ export const api = {
   submit: (reportId) => call('POST', `/reports/${reportId}/submit`),
   confirm: (reportId) => call('POST', `/reports/${reportId}/confirm`),
   unconfirm: (reportId) => call('POST', `/reports/${reportId}/unconfirm`),
+
+  // 계정·담당 관리 (§6.1 / §6.3)
+  adminOverview: () => call('GET', '/admin/overview'),
+  adminAudit: (limit = 60) => call('GET', `/admin/audit?limit=${limit}`),
+  scopeAdd: (userId, houseId, from) => call('POST', '/admin/scopes', { userId, houseId, from }),
+  scopeEnd: (userId, houseId, from) => call('POST', '/admin/scopes/end', { userId, houseId, from }),
+  userCreate: (body) => call('POST', '/admin/users', body),
+  userPatch: (id, body) => call('PATCH', `/admin/users/${id}`, body),
+  userPassword: (id) => call('POST', `/admin/users/${id}/password`),
+  userRoles: (id, roles) => call('POST', `/admin/users/${id}/roles`, { roles }),
 };
+
+export const ROLE_LABEL = {
+  worker: '작업자', team_lead: '팀장', farm_manager: '현장관리',
+  hq_staff: '본사', hq_manager: '본사관리', auditor: '감사', admin: '관리자',
+};
+
+export const STATUS_USER = { active: '사용 중', suspended: '중지', left: '퇴사' };
 
 /** 오늘. toISOString 은 UTC 라 한국 시각으로 하루가 밀린다 — 현지 날짜를 쓴다. */
 export function today() {

@@ -152,8 +152,10 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const confirm = () => act('confirm', () => api.confirm(data.report.id));
   const unconfirm = () => act('unconfirm', () => api.unconfirm(data.report.id));
 
-  const goDate = (delta) => {
-    if (dirty && !window.confirm('저장하지 않은 내용이 있습니다. 그래도 이동할까요?')) return;
+  // 넣던 것이 있으면 **묻지 않고 저장한 뒤** 옮긴다.
+  // 「저장 안 했는데 갈까요?」는 답이 하나뿐인 질문이다 — 잃고 싶은 사람은 없다.
+  const goDate = async (delta) => {
+    if (dirty) await save();
     nav(`/report/${houseId}/${shiftDate(date, delta)}`);
   };
 

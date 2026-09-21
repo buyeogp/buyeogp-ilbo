@@ -67,7 +67,7 @@ const farm = (await admin.query(`select id from app.farm where code='BUYEO'`)).r
 const jadon = (await admin.query(`select id from app.house where code='JADON'`)).rows[0].id;
 const bunman = (await admin.query(`select id from app.house where code='BUNMAN1'`)).rows[0].id;
 
-await admin.query(`delete from sec.app_user where login_id in ('smoke.lead','smoke.hq')`);
+await admin.query(`delete from sec.app_user where login_id in ('smoke.lead','smoke.hq','smoke.new','smoke.bad')`);
 const lead = (await admin.query(
   `insert into sec.app_user (login_id,name,password_hash,status)
    values ('smoke.lead','시험 팀장',$1,'active') returning id`, [await hashPassword(TEST_PW)]
@@ -200,13 +200,137 @@ try {
     status.body?.houses?.find((h) => h.code === 'JADON')?.status === 'confirmed');
 
   // ── 로그아웃 ──────────────────────────────────────────────────────
+  // ── 계정 관리 ─────────────────────────────────────────────────────
+  // 현장이 스스로 관리해야 하므로 넓게 열려 있다. 열린 만큼 경계가 중요하다.
+  console.log('\n━━ 계정 관리 ━━');
+
+  // 지금은 본사(smoke.hq)로 붙어 있다.
+  const ov = await call('GET', '/api/admin/overview');
+  ck('본사는 관리 화면을 본다', ov.status === 200, `실제 ${ov.status}`);
+  ck('돈사별 담당 현황이 온다', ov.body?.owners?.length === 12, `실제 ${ov.body?.owners?.length}`);
+  ck('본사는 등급을 바꿀 수 있다', ov.body?.can?.roles === true);
+
+  // 담당 배정 — 이게 매일 쓰이는 기능이다
+  const mk = await call('POST', '/api/admin/scopes', { userId: lead, houseId: bunman });
+  ck('담당 배정', mk.status === 201, JSON.stringify(mk.body)?.slice(0, 80));
+
+  // 배정한 것이 실제로 권한이 되는지 — 여기까지 와야 「됐다」고 할 수 있다
+  {
+    const save = cookie;
+    cookie = '';
+    await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+    const me2 = await call('GET', '/api/auth/me');
+    const reach = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
+    ck('배정하면 바로 그 돈사가 보인다', me2.body?.scopes?.length === 2,
+      `실제 ${me2.body?.scopes?.length}`);
+    ck('아까 403 이던 돈사가 열린다', reach.status === 200, `실제 ${reach.status}`);
+    cookie = save;
+  }
+
+  const dup = await call('POST', '/api/admin/scopes', { userId: lead, houseId: bunman });
+  ck('같은 담당을 두 번 넣으면 409', dup.status === 409, `실제 ${dup.status}`);
+
+  const backdate = await call('POST', '/api/admin/scopes/end',
+    { userId: lead, houseId: bunman, from: '2020-01-01' });
+  ck('시작보다 앞선 날짜로는 못 끝낸다', backdate.status === 422, `실제 ${backdate.status}`);
+
+  const off = await call('POST', '/api/admin/scopes/end',
+    { userId: lead, houseId: bunman, from: '2031-06-01' });
+  ck('담당 해제 (미래 날짜 예약)', off.status === 200, JSON.stringify(off.body)?.slice(0, 80));
+
+  // 지우지 않고 닫는다 — 이력이 남아야 「그때 누가 담당이었나」를 안다
+  const hist = (await admin.query(
+    `select valid_to::text as t from sec.user_scope
+      where user_id=$1 and house_id=$2`, [lead, bunman])).rows[0];
+  ck('해제해도 줄이 남는다 (이력)', hist?.t === '2031-05-31', `실제 ${hist?.t}`);
+
+  // 계정 만들기
+  const made = await call('POST', '/api/admin/users',
+    { loginId: 'smoke.new', name: '새 팀장', roles: ['team_lead'] });
+  ck('계정 생성', made.status === 201, JSON.stringify(made.body)?.slice(0, 80));
+  ck('임시 비밀번호를 한 번 돌려준다',
+    typeof made.body?.password === 'string' && made.body.password.length >= 12);
+
+  {
+    const save = cookie;
+    cookie = '';
+    const r = await call('POST', '/api/auth/login',
+      { loginId: 'smoke.new', password: made.body.password });
+    ck('그 비밀번호로 로그인된다', r.status === 200, `실제 ${r.status}`);
+    cookie = save;
+  }
+
+  const relock = await call('PATCH', `/api/admin/users/${made.body.userId}`,
+    { status: 'suspended' });
+  ck('계정 중지', relock.status === 200, `실제 ${relock.status}`);
+
+  {
+    const save = cookie;
+    cookie = '';
+    const r = await call('POST', '/api/auth/login',
+      { loginId: 'smoke.new', password: made.body.password });
+    ck('중지하면 로그인 거부', r.status === 401, `실제 ${r.status}`);
+    cookie = save;
+  }
+
+  const selfLock = await call('PATCH', `/api/admin/users/${hq}`, { status: 'suspended' });
+  ck('자기 계정은 스스로 중지 못 한다', selfLock.status === 422, `실제 ${selfLock.status}`);
+
+  const changed = await call('POST', `/api/admin/users/${made.body.userId}/roles`,
+    { roles: ['team_lead', 'admin'] });
+  ck('본사는 관리자 권한을 줄 수 있다', changed.status === 200,
+    JSON.stringify(changed.body)?.slice(0, 80));
+
+  const log = await call('GET', '/api/admin/audit?limit=20');
+  ck('바꾼 것이 이력에 남는다',
+    log.body?.entries?.some((e) => /담당 지정|계정 생성|등급/.test(e.detail ?? '')),
+    JSON.stringify(log.body?.entries?.slice(0, 2)));
+
+  // ── 경계 : 팀장은 어디까지 ────────────────────────────────────────
+  console.log('\n━━ 계정 관리 경계 ━━');
+  cookie = '';
+  await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+
+  const noAdmin = await call('GET', '/api/admin/overview');
+  ck('관리자 권한 없는 팀장은 403', noAdmin.status === 403, `실제 ${noAdmin.status}`);
+
+  // 관리자 권한을 주면 담당은 바꿀 수 있다
+  await admin.query(`insert into sec.user_role (user_id,role) values ($1,'admin')`, [lead]);
+  cookie = '';
+  await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+
+  const asAdmin = await call('GET', '/api/admin/overview');
+  ck('관리자 권한을 받은 팀장은 들어간다', asAdmin.status === 200, `실제 ${asAdmin.status}`);
+  ck('단 등급 변경 단추는 없다', asAdmin.body?.can?.roles === false);
+
+  const scopeOk = await call('POST', '/api/admin/scopes', { userId: lead, houseId: bunman });
+  ck('담당은 스스로 바꿀 수 있다', scopeOk.status === 201, `실제 ${scopeOk.status}`);
+
+  // SoD-1 — 여기가 무너지면 팀장이 자기 일보를 자기가 확정한다
+  const escalate = await call('POST', `/api/admin/users/${lead}/roles`,
+    { roles: ['team_lead', 'admin', 'hq_staff'] });
+  ck('팀장은 스스로 본사 등급을 못 가진다 (SoD-1)', escalate.status === 403,
+    `실제 ${escalate.status}`);
+
+  const makeHq = await call('POST', '/api/admin/users',
+    { loginId: 'smoke.bad', name: '우회 시도', roles: ['hq_staff'] });
+  ck('본사 등급 계정도 못 만든다', makeHq.status === 403, `실제 ${makeHq.status}`);
+
+  // 계정 관리 연결로는 일보가 안 보인다 (SoD-3). DB 계층에서 이미 막혀 있으나
+  // 라우터가 실수로 업무 질의를 섞었는지 여기서도 한 번 본다.
+  const leak = await call('GET', '/api/admin/overview');
+  ck('관리 화면 응답에 업무 데이터가 섞여 있지 않다',
+    !/closing_head|openingHead|pen_daily/.test(JSON.stringify(leak.body)));
+
   console.log('\n━━ 로그아웃 ━━');
   await call('POST', '/api/auth/logout');
   ck('로그아웃 후 401', (await call('GET', '/api/auth/me')).status === 401);
 
 } finally {
   await admin.query(`delete from app.daily_report where report_date >= date '2031-01-01'`);
-  await admin.query(`delete from sec.app_user where login_id in ('smoke.lead','smoke.hq')`);
+  await admin.query(`delete from sec.app_user where login_id in ('smoke.lead','smoke.hq','smoke.new','smoke.bad')`);
+  // 감사로그는 지우지 않는다 — 지울 수 없다. append-only 규칙이 DELETE 를
+  // 무동작으로 만든다. 시험이 남긴 줄도 그대로 남는 것이 맞다 (§6.6).
   await admin.end();
   server.close();
   await pool.end();

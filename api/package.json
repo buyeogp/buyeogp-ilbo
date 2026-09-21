@@ -20,7 +20,8 @@
     "seed:users": "node src/db/seed-users.js",
     "smoke": "node src/http/smoke.js",
     "dev:user": "node src/db/dev-user.js",
-    "scope": "node src/db/scope.js"
+    "scope": "node src/db/scope.js",
+    "setup:admin": "node src/db/setup-admin-role.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

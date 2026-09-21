@@ -26,6 +26,7 @@ BEGIN;
 \ir 018_storage_buckets.sql
 \ir 019_session.sql
 \ir 020_auth_grants.sql
+\ir 021_admin_grants.sql
 
 COMMIT;
 

@@ -8,6 +8,7 @@ import { pool } from '../db/pool.js';
 import { attachUser, errorHandler, noStore, HttpError } from './middleware.js';
 import { authRouter } from './routes/auth.js';
 import { reportsRouter } from './routes/reports.js';
+import { adminRouter } from './routes/admin.js';
 
 export function createApp() {
   const app = express();
@@ -30,6 +31,8 @@ export function createApp() {
   app.use('/api', noStore, attachUser);
   app.use('/api/auth', authRouter);
   app.use('/api/reports', reportsRouter);
+  // 계정·담당 관리. 여기만 다른 DB 연결을 쓴다 — 업무 데이터가 안 보이는 연결이다
+  app.use('/api/admin', adminRouter);
 
   app.use('/api', (_req, _res, next) =>
     next(new HttpError(404, 'not_found', '없는 주소입니다.')));
