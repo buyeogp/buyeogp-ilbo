@@ -64,7 +64,7 @@ function Shell({ me, onSignedOut }) {
           <Route path="/status/:date"
                  element={<StatusRoute me={me} onDate={setDate} />} />
           <Route path="/admin" element={<Admin me={me} />} />
-          <Route path="/help" element={<Help />} />
+          <Route path="/help" element={<Help me={me} />} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </main>

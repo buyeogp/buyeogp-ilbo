@@ -599,7 +599,16 @@ table.grid tbody tr.missing td.rowhead { box-shadow: inset 3px 0 0 var(--crit); 
 .help-toc a:hover { background: var(--surface-2); color: var(--ink); }
 .help-toc a b { font-family: var(--f-num); color: var(--accent); }
 
-.help section { padding: 22px 0; border-bottom: 1px solid var(--line-2); max-width: 74ch; }
+/* 절은 화면 폭을 다 쓴다. 글만 74ch 로 묶는다 —
+   그래야 그림을 크게 넣을 수 있다. 작은 그림은 안 넣느니만 못하다. */
+.help section { padding: 22px 0; border-bottom: 1px solid var(--line-2); }
+.help section > p,
+.help section > ol,
+.help section > ul,
+.help section > h3,
+.help section > table,
+.help section > .warn-line,
+.help section > .flow { max-width: 74ch; }
 .help section:last-of-type { border-bottom: none; }
 .help h2 {
   display: flex;
@@ -755,3 +764,112 @@ table.k kbd {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .savestate .spin { animation: none; } }
+
+/* ═══ 설명서 — 화면 그림과 등급 고르기 ═══════════════════ */
+.help-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.help-who .chip {
+  width: auto;
+  min-height: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 5px 13px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.help-who .chip i {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.help-who .chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.help-who .chip.on i { color: rgba(255,255,255,.8); }
+
+/* 화면 그림 — 글 칸보다 넓게 둔다. 작으면 읽을 수 없다 */
+.shot { margin: 16px 0 22px; max-width: none; }
+.shot-img {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.shot-img { max-width: min(100%, 1140px); }
+.shot-img img { display: block; width: 100%; height: auto; }
+
+/* 번호는 그림 위에 얹는다 — 구워 넣으면 못 고치고 글자가 뭉개진다 */
+.shot .mark {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px; height: 20px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--crit);
+  color: #fff;
+  font-family: var(--f-num);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.35);
+}
+.shot-legend {
+  counter-reset: sl;
+  list-style: none;
+  padding-left: 0;
+  margin: 10px 0 0;
+  max-width: 74ch;
+}
+.shot-legend li {
+  counter-increment: sl;
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+}
+.shot-legend li::before {
+  content: counter(sl);
+  position: absolute; left: 0; top: 1px;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--crit);
+  color: #fff;
+  font-family: var(--f-num);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.shot figcaption {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  max-width: 74ch;
+}
+
+@media print {
+  .help-who { display: none !important; }
+  .shot { break-inside: avoid; }
+  .shot .mark, .shot-legend li::before {
+    background: #000 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}
