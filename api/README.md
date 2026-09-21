@@ -104,6 +104,28 @@ API 수준에서도 지켜진다.
 돈사마다 있어야 할 행이 다르므로(`count_basis`) 화면이 그 규칙을 다시 구현하면
 L1-COMPLETE 와 어긋난다.
 
+## 컨테이너 — Chromium 이 도는 자리
+
+`Dockerfile` 이 존재하는 이유의 절반은 Chromium 이다. 일보 PDF 를 서버가 구워야
+하므로(§6.5) 브라우저 엔진이 들어간다. 그래서 이미지가 600MB 쯤 된다.
+
+| | |
+|---|---|
+| 바탕 | `node:24-bookworm-slim` — 개발 PC 와 같은 Node 24 |
+| Chromium | 배포판 패키지 (`/usr/bin/chromium`). 내려받지 않는다 — 보안 업데이트를 apt 가 맡는다 |
+| 글꼴 | `fonts-noto-cjk`. **없으면 PDF 의 모든 글자가 네모로 나온다** |
+| PID 1 | `dumb-init`. 렌더가 죽었을 때 남는 Chromium 좀비를 거둔다 |
+| 사용자 | `node` (비 root). `render.js` 가 `--no-sandbox` 로 띄우므로 권한이 더 필요 없다 |
+
+puppeteer-core 와 Chromium 의 판올림이 어긋나면 PDF 만 조용히 깨진다. 지금은
+개발 PC 의 Chrome `153.0.8010.36` 과 Debian bookworm 의 chromium
+`153.0.8010.52` 가 같은 주버전이고, puppeteer-core 24.43.1 로 실제 출력을 확인했다.
+**배포한 뒤에는 반드시 PDF 를 한 장 뽑아 본다** — 안 되면 시스템을 쓸 수 없다.
+
+/dev/shm 이 기본 64MB 라 대량 출력에서 Chromium 이 죽는다.
+`docker-compose.yml` 이 `shm_size: 512mb` 를 주고, 직접 띄울 때는
+`--shm-size=512m` 를 붙인다.
+
 ## 왜 서버에서 PDF 를 만드는가
 
 설계문서 §6.5 — HACCP 은 전자기록을 인정하지 않는다. 종이를 3년 보관해야 한다.
@@ -172,4 +194,3 @@ Chromium 을 내려받지 않고 시스템 Chrome 을 쓴다(`puppeteer-core`).
 | 5 | 이동 1:N 대사 · 예외 큐 SSE | §5.5 / §5.8 |
 | 6 | 폐사·도태·약품·백신 등록 | §4.7 / §4.9 |
 | 7 | 2단계 인증 (본사 계정) | §6.7 |
-| 8 | Dockerfile | `infra/docker-compose.yml` 의 `api` 서비스가 참조한다 |
