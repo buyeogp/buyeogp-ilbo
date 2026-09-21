@@ -14,9 +14,15 @@
     "load:m3": "node src/db/load-m3.js",
     "setup:role": "node src/db/setup-app-role.js",
     "pdf": "node src/pdf/render.js",
-    "pdf:all": "node src/pdf/render-all.js"
+    "pdf:all": "node src/pdf/render-all.js",
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "seed:users": "node src/db/seed-users.js",
+    "smoke": "node src/http/smoke.js"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
     "pg": "^8.23.0",
     "puppeteer-core": "^24.10.0"
   }

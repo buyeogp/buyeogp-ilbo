@@ -91,7 +91,7 @@ const inv = (await client.query(`
    (select count(*) from pg_constraint co join pg_namespace n on n.oid=co.connamespace
      where n.nspname='app' and co.contype='c')                               as checks`)).rows[0];
 console.table(inv);
-check('스키마 테이블 57개 (m3_* 제외)', +inv.tables === 57, `실제 ${inv.tables}`);
+check('스키마 테이블 58개 (m3_* 제외)', +inv.tables === 58, `실제 ${inv.tables}`);
 check('트리거 56개 이상', +inv.triggers >= 56, `실제 ${inv.triggers}`);
 check('뷰 16개', +inv.views === 16, `실제 ${inv.views}`);
 check('생성열 9개 이상', +inv.generated >= 9, `실제 ${inv.generated}`);

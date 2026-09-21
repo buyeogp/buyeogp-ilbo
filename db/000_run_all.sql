@@ -24,6 +24,8 @@ BEGIN;
 \ir 016_seed_pen.sql
 \ir 017_seed_medicine_feed.sql
 \ir 018_storage_buckets.sql
+\ir 019_session.sql
+\ir 020_auth_grants.sql
 
 COMMIT;
 
