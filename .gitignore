@@ -15,6 +15,7 @@ infra/backups/
 # Node
 node_modules/
 api/out/
+web/dist/
 
 # Python
 __pycache__/

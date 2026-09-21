@@ -160,6 +160,13 @@ try {
   ck(`V1 당일두수 = ${prev} + 전입 10`, r0.closingHead === prev + 10,
     `실제 ${r0.closingHead}`);
 
+  // 그리드는 저장 전에도 전일두수를 보여 줘야 한다(§8.1). 조회 API 가 V2 와 같은
+  // 규칙으로 미리 계산해서 내려보내는데, 그 예상과 실제가 어긋나면 화면의 숫자가
+  // 저장하는 순간 바뀐다 — 현장이 가장 못 믿게 되는 종류의 버그다.
+  ck('저장 전 예상 전일두수 = 저장 후 실제 전일두수',
+    mine.body.rows.every((r, i) => r.expectedOpeningHead === after.body.rows[i].openingHead),
+    `${mine.body.rows.filter((r, i) => r.expectedOpeningHead !== after.body.rows[i].openingHead).length}행 불일치`);
+
   // 규칙 위반이 실제로 막히는지
   const bogus = await call('PUT', `/api/reports/${reportId}/rows`,
     { rows: [{ penId: rows[1].penId, inHead: 0, outHead: 999 }] });

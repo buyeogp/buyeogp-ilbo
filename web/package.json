@@ -1,0 +1,21 @@
+{
+  "name": "buyeogp-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "부여GP 돈사 일보 시스템 — 현장 입력 화면",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.1.0"
+  }
+}

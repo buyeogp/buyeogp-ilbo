@@ -84,7 +84,7 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
     const saved = report ? await q.all(
       `SELECT pd.id, pd.pen_id, pd.batch_id, pd.category_id,
               pd.opening_head, pd.in_head, pd.out_head, pd.internal_out_head,
-              pd.sold_head, pd.dead_head, pd.closing_head,
+              pd.sold_head, pd.dead_head, pd.culled_head, pd.closing_head,
               pd.reported_closing_head, pd.variance, pd.variance_reason,
               pd.avg_weight_kg, pd.note
          FROM app.pen_daily pd WHERE pd.report_id = $1`, [report.id]) : [];
@@ -99,6 +99,21 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
       `SELECT c.id, c.code, c.name, hc.seq FROM app.house_category hc
          JOIN app.pig_category c ON c.id = hc.category_id
         WHERE hc.house_id = $1 AND hc.active ORDER BY hc.seq`, [houseId]);
+
+    // 아직 저장 전인 행의 전일두수. V2 트리거가 채울 값을 **같은 규칙으로** 미리 본다.
+    // 화면이 전일두수를 비워 두면 팀장이 아무것도 대조할 수 없다 (§8.1 「전일두수 자동」).
+    // 규칙을 여기서 다시 쓰는 것이 아니라 011 의 V2 질의를 그대로 옮겨 온 것이다 —
+    // 어긋나면 저장 직후 값이 바뀌어 바로 드러난다.
+    const carried = new Map((await q.all(
+      `SELECT DISTINCT ON (pd.pen_id, pd.batch_id, pd.category_id)
+              pd.pen_id, pd.batch_id, pd.category_id, pd.closing_head
+         FROM app.pen_daily pd
+         JOIN app.daily_report d2 ON d2.id = pd.report_id
+        WHERE pd.house_id = $1
+          AND pd.report_date < $2::date
+          AND d2.status IN ('confirmed','locked')
+        ORDER BY pd.pen_id, pd.batch_id, pd.category_id, pd.report_date DESC`,
+      [houseId, date])).map((r) => [`${r.pen_id ?? ''}|${r.category_id ?? ''}`, r.closing_head]));
 
     const skeleton = [];
     const basis = house.count_basis;
@@ -124,11 +139,13 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
         rowLabel: sk.penCode ?? sk.categoryName ?? house.name,
         id: s?.id ?? null,
         openingHead: s?.opening_head ?? null,      // 시스템이 채운다. 화면은 읽기만
+        expectedOpeningHead: carried.get(key(sk)) ?? 0,  // 저장 전에 보여 줄 값
         inHead: s?.in_head ?? null,
         outHead: s?.out_head ?? null,
         internalOutHead: s?.internal_out_head ?? null,
         soldHead: s?.sold_head ?? null,
         deadHead: s?.dead_head ?? null,            // 폐사 등록에서 파생 (V7)
+        culledHead: s?.culled_head ?? null,        // 도태 등록에서 파생 (V7)
         closingHead: s?.closing_head ?? null,      // 생성열 (V1)
         reportedClosingHead: s?.reported_closing_head ?? null,
         varianceReason: s?.variance_reason ?? null,

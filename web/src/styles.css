@@ -1,0 +1,452 @@
+/*
+ * 부여GP 일보 화면
+ *
+ * 쓰는 사람이 외국인 팀장 4명이다 (§6.4 P10).
+ * 긴 문장 대신 숫자·색상·위치로 말한다. 오류는 해당 셀을 붉게 하고
+ * 차이값을 숫자로 보여 준다.
+ *
+ * 현행 엑셀 일보를 매일 보던 사람들이라 화면이 그것과 비슷해야 한다.
+ * 그래서 촘촘한 표에 얇은 선 — 웹 앱보다 스프레드시트에 가깝게 둔다.
+ */
+
+:root {
+  --ground:    #EDF1F2;
+  --surface:   #FFFFFF;
+  --surface-2: #F5F8F8;
+  --head:      #E4EAEB;
+  --ink:       #16232C;
+  --ink-2:     #4E606C;
+  --ink-3:     #8697A1;
+  --line:      #C9D3D7;
+  --line-2:    #E2E9EB;
+
+  --accent:    #0E6E6E;
+  --accent-w:  #E0EEED;
+  --ok:        #1B7A4B;
+  --ok-w:      #E3F2E9;
+  --warn:      #A4590C;
+  --warn-w:    #FCF0E2;
+  --crit:      #AC2A22;
+  --crit-w:    #FCEBEA;
+
+  --f-sans: "Malgun Gothic", "맑은 고딕", -apple-system, system-ui, sans-serif;
+  --f-num:  "Consolas", "D2Coding", ui-monospace, monospace;
+
+  --row-h: 30px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:    #0F1A20;
+    --surface:   #16242C;
+    --surface-2: #1C2D36;
+    --head:      #223642;
+    --ink:       #E5EDF0;
+    --ink-2:     #A2B4BE;
+    --ink-3:     #72858F;
+    --line:      #2E434F;
+    --line-2:    #223540;
+    --accent:    #4FB3AC;
+    --accent-w:  #143330;
+    --ok:        #4CAF7D;
+    --ok-w:      #12301F;
+    --warn:      #D2934F;
+    --warn-w:    #33251A;
+    --crit:      #E0827A;
+    --crit-w:    #331D1C;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+/* ── 껍데기 ──────────────────────────────────────── */
+/* 화면 높이에 맞춘 틀. 표만 안에서 구르고 아래 단추 줄은 늘 보인다 —
+   경고가 늘어나도 「제출」이 화면 밖으로 밀리면 안 된다. */
+.shell { display: flex; flex-direction: column; height: 100%; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+/* 탭 줄만 줄어든다. 이름·로그아웃·「제출 현황」은 줄지 않는다 */
+.topbar > :not(.house-tabs) { flex: 0 0 auto; }
+.topbar .brand { font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+.topbar .spacer { flex: 0 0 4px; }
+.topbar .who { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.topbar .who b { color: var(--ink); }
+
+/* 돈사가 여럿인 팀장을 위한 전환 탭 (§6.4)
+   본사는 12개가 다 뜬다 — 좁아지면 탭 줄만 가로로 구르고, 이름·로그아웃은 제자리에 있는다. */
+.house-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.house-tabs button {
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--ink-2);
+  padding: 6px 14px;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.house-tabs button:hover { background: var(--surface-2); }
+.house-tabs button[aria-current="true"] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+.house-tabs .dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--ink-3);
+}
+.house-tabs .dot.done  { background: var(--ok); }
+.house-tabs .dot.draft { background: var(--warn); }
+
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 돈사 이름을 크게 — 여러 돈사를 오가는 팀장이 헷갈리지 않게 (§6.4) */
+.house-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.house-banner h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -.02em;
+}
+.house-banner .date {
+  font-family: var(--f-num);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.house-banner .spacer { flex: 1; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid;
+}
+.badge.draft     { color: var(--warn);   background: var(--warn-w);  border-color: var(--warn); }
+.badge.submitted { color: var(--accent); background: var(--accent-w); border-color: var(--accent); }
+.badge.confirmed,
+.badge.locked    { color: var(--ok);     background: var(--ok-w);    border-color: var(--ok); }
+.badge.none      { color: var(--ink-3);  background: var(--surface-2); border-color: var(--line); }
+
+/* ── 표 ──────────────────────────────────────────── */
+.grid-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 140px;
+}
+/* 행이 적은 표(제출 현황)는 내용만큼만 차지한다 */
+.grid-wrap.fit { flex: 0 1 auto; min-height: 0; }
+
+table.grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 13px;
+}
+
+table.grid th, table.grid td {
+  border-right: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+  padding: 0;
+  height: var(--row-h);
+  text-align: center;
+  white-space: nowrap;
+}
+
+table.grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--head);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+}
+table.grid thead th.group { border-bottom: 1px solid var(--line-2); }
+
+/* 행 머리(돈방/축종)는 가로 스크롤해도 붙어 있어야 한다 */
+table.grid th.rowhead, table.grid td.rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface-2);
+  font-weight: 600;
+  padding: 0 10px;
+  text-align: left;
+  min-width: 88px;
+  border-right: 1px solid var(--line);
+}
+table.grid thead th.rowhead { z-index: 4; background: var(--head); }
+
+table.grid tbody tr:hover td { background: var(--accent-w); }
+table.grid tbody tr:hover td.rowhead { background: var(--accent-w); }
+
+/* 읽기 전용 값 — 전일두수·당일두수는 시스템이 정한다 */
+td.readonly {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  padding: 0 8px;
+}
+td.readonly.strong { color: var(--ink); font-weight: 600; }
+
+td.cell { padding: 0; }
+td.cell input {
+  width: 100%;
+  height: 100%;
+  min-height: calc(var(--row-h) - 1px);
+  border: 0;
+  background: transparent;
+  text-align: right;
+  padding: 0 8px;
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+td.cell input:focus {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+td.cell input::placeholder { color: var(--ink-3); }
+/* 0 은 흐리게 — 현행 일보가 공란으로 두던 자리다 */
+td.cell input.zero { color: var(--ink-3); }
+td.cell.bad input { background: var(--crit-w); }
+td.cell.bad input:focus { box-shadow: inset 0 0 0 2px var(--crit); }
+
+/* 아직 답하지 않은 행. 글자를 붉게 하면 다 비었을 때 화면이 온통 붉어진다 —
+   왼쪽에 가는 띠만 세운다. 훑으면서 빠진 줄을 찾기에는 이게 낫다. */
+tr.missing td.opening { box-shadow: inset 3px 0 0 var(--crit); }
+
+tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--head);
+  font-weight: 700;
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  padding: 0 8px;
+  border-top: 1px solid var(--line);
+}
+tfoot td.rowhead { background: var(--head); font-family: var(--f-sans); }
+
+/* ── 검산 뱃지 ───────────────────────────────────── */
+.chk {
+  display: inline-block;
+  min-width: 34px;
+  font-family: var(--f-num);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chk.ok  { color: var(--ok); }
+.chk.bad { color: var(--crit); }
+
+/* ── 막대 · 단추 ─────────────────────────────────── */
+.actionbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.actionbar .spacer { flex: 1; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.hint { font-size: 12px; color: var(--ink-3); }
+.hint kbd {
+  font-family: var(--f-num);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0 5px;
+  background: var(--surface);
+}
+
+/* ── 알림 ────────────────────────────────────────── */
+.notes {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 0 0 12px;
+  max-height: 22vh; overflow: auto;
+}
+.note {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 12px;
+  border-left: 3px solid;
+  border-radius: 0 4px 4px 0;
+  font-size: 13px;
+}
+.note.block { border-color: var(--crit);   background: var(--crit-w); }
+.note.warn  { border-color: var(--warn);   background: var(--warn-w); }
+.note.info  { border-color: var(--accent); background: var(--accent-w); }
+.note .where {
+  font-family: var(--f-num);
+  font-weight: 700;
+  min-width: 54px;
+}
+
+/* ── 로그인 ──────────────────────────────────────── */
+.login {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login form {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 28px 26px;
+}
+.login h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: -.02em; }
+.login p.sub { margin: 0 0 20px; color: var(--ink-3); font-size: 13px; }
+.field { display: block; margin-bottom: 14px; }
+.field span { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 4px; }
+.field input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+}
+.field input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.login .btn { width: 100%; margin-top: 4px; padding: 10px; }
+.login .err {
+  background: var(--crit-w);
+  border-left: 3px solid var(--crit);
+  padding: 9px 12px;
+  border-radius: 0 4px 4px 0;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* ── 좁은 화면 — 읽기 전용 카드 ──────────────────── */
+.cards { display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 10px 12px;
+}
+.card .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.card .top b { font-size: 15px; }
+.card .top .now {
+  font-family: var(--f-num);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.card .moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.card .moves span b {
+  font-family: var(--f-num);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mobile-note {
+  background: var(--warn-w);
+  border-left: 3px solid var(--warn);
+  padding: 10px 12px;
+  border-radius: 0 4px 4px 0;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.center { display: grid; place-items: center; padding: 48px 16px; color: var(--ink-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

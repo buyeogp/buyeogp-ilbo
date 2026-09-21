@@ -18,7 +18,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed:users": "node src/db/seed-users.js",
-    "smoke": "node src/http/smoke.js"
+    "smoke": "node src/http/smoke.js",
+    "dev:user": "node src/db/dev-user.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
