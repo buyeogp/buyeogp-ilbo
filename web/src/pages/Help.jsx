@@ -55,7 +55,7 @@ export function Help() {
 
         <h3>화면이 잠기면</h3>
         <p><b>15분</b> 동안 아무것도 누르지 않으면 잠깁니다. 다시 로그인하면 됩니다.
-           쓰던 내용은 <b>임시저장</b>한 것까지 남습니다.</p>
+           <b>넣던 내용은 저절로 저장되어 있습니다.</b></p>
 
         <h3>돈사 바꾸기</h3>
         <p>맡은 돈사가 여러 개면 화면 맨 위에 탭이 나옵니다. 누르면 바뀝니다.
@@ -97,6 +97,19 @@ export function Help() {
           빈칸은 「없었다」인지 「아직 안 봤다」인지 알 수 없습니다.
         </p>
 
+        <h3>저장은 저절로 됩니다</h3>
+        <p>숫자를 넣고 <b>1~2초 지나면 저절로 저장</b>됩니다. 저장 단추를 누르지 않아도 됩니다.
+           화면 오른쪽 아래를 보면 지금 어떤 상태인지 나옵니다.</p>
+        <table className="k">
+          <tbody>
+            <tr><td>저장 중…</td><td>보내는 중입니다</td></tr>
+            <tr><td className="auto">17:20 저장됨</td><td>다 저장됐습니다</td></tr>
+            <tr><td className="you">17:20 저장 · 1행은 고쳐야 저장됩니다</td>
+                <td>빨간 칸이 있는 줄만 아직 안 됐습니다. <b>고치면 바로 저장됩니다</b></td></tr>
+            <tr><td>저장 못 했습니다</td><td>인터넷을 봅니다. 화면을 닫지 마십시오</td></tr>
+          </tbody>
+        </table>
+
         <h3>키보드</h3>
         <table className="k keys">
           <tbody>
@@ -104,7 +117,7 @@ export function Help() {
             <tr><td><kbd>Enter</kbd></td><td>다음 줄, 같은 칸</td></tr>
             <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></td><td>칸 옮기기</td></tr>
             <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td><b>이 줄은 변동 없음</b> — 빈칸을 0 으로 채우고 다음 줄로</td></tr>
-            <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>임시저장</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>지금 바로 저장 (안 눌러도 저절로 저장됩니다)</td></tr>
           </tbody>
         </table>
         <p>숫자판(키보드 오른쪽 숫자)을 쓰면 빠릅니다.</p>
@@ -236,6 +249,8 @@ export function Help() {
                 <td>15분 기다렸다가 다시 합니다</td></tr>
             <tr><td>화면이 안 열립니다</td>
                 <td>인터넷을 봅니다. 그래도 안 되면 본사에 말합니다</td></tr>
+            <tr><td>「저장 못 했습니다」가 뜹니다</td>
+                <td>인터넷을 봅니다. <b>화면을 닫지 마십시오</b> — 열어 두면 다시 보냅니다</td></tr>
           </tbody>
         </table>
 

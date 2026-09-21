@@ -34,13 +34,17 @@ reportsRouter.get('/status', wrap(async (req, res) => {
       WHERE h.active
       ORDER BY h.seq`, [date ?? new Date().toISOString().slice(0, 10)]));
 
-  res.json({ date, houses: rows.map((r) => ({
-    houseId: r.house_id, code: r.code, name: r.name, type: r.type,
-    countBasis: r.count_basis, reportId: r.report_id, status: r.status,
-    submittedAt: r.submitted_at, confirmedAt: r.confirmed_at, printedAt: r.printed_at,
-    entered: r.entered, expected: expectedRows(r),
-    canWrite: canWriteHouse(req.user, r.house_id),
-  })) });
+  // 볼 수 있는 돈사만. 전 돈사 등급이면 전부, 팀장이면 담당만.
+  // RLS 는 app.house 를 막지 않으므로(마스터다) 여기서 걸러야 한다 — §6.7 전건 검사.
+  res.json({ date, houses: rows
+    .filter((r) => canAccessHouse(req.user, r.house_id))
+    .map((r) => ({
+      houseId: r.house_id, code: r.code, name: r.name, type: r.type,
+      countBasis: r.count_basis, reportId: r.report_id, status: r.status,
+      submittedAt: r.submitted_at, confirmedAt: r.confirmed_at, printedAt: r.printed_at,
+      entered: r.entered, expected: expectedRows(r),
+      canWrite: canWriteHouse(req.user, r.house_id),
+    })) });
 }));
 
 /** count_basis 에 따라 있어야 할 행 수가 다르다 (L1-COMPLETE 와 같은 규칙) */
@@ -259,16 +263,31 @@ reportsRouter.put('/:reportId/rows', wrap(async (req, res) => {
         [rep.id, req.body.noteText]);
     }
 
-    return q.all(`SELECT rule_code, severity::text, pen_code, message
-                    FROM app.fn_validate_report($1)`, [rep.id]);
+    // 저장된 행의 **계산값만** 돌려준다.
+    // 화면이 저장 뒤에 표를 통째로 다시 불러오면, 그 사이 다른 칸에 치고 있던
+    // 내용이 날아간다. 자동저장에서는 그게 매번 일어난다.
+    const computed = await q.all(
+      `SELECT pd.pen_id, pd.category_id, pd.opening_head, pd.dead_head, pd.culled_head,
+              pd.closing_head, pd.variance
+         FROM app.pen_daily pd WHERE pd.report_id = $1`, [rep.id]);
+
+    const v = await q.all(`SELECT rule_code, severity::text, pen_code, message
+                             FROM app.fn_validate_report($1)`, [rep.id]);
+    return { computed, violations: v };
   });
 
   res.json({
     saved: rows.length,
-    violations: out.map((v) => ({
+    // 시스템이 정하는 값만. 사람이 넣은 칸은 돌려보내지 않는다 — 덮어쓰면 안 된다
+    rows: out.computed.map((r) => ({
+      penId: r.pen_id, categoryId: r.category_id,
+      openingHead: r.opening_head, deadHead: r.dead_head, culledHead: r.culled_head,
+      closingHead: r.closing_head, variance: r.variance,
+    })),
+    violations: out.violations.map((v) => ({
       ruleCode: v.rule_code, severity: v.severity, penCode: v.pen_code, message: v.message,
     })),
-    canSubmit: !out.some((v) => v.severity === 'block'),
+    canSubmit: !out.violations.some((v) => v.severity === 'block'),
   });
 }));
 

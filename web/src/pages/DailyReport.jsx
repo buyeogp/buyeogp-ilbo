@@ -9,7 +9,7 @@
  * 화면이 하는 일은 하나다: **지금 무엇이 비어 있고 무엇이 어긋났는지**를
  * 위치와 색으로 보여 주는 것.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, formatDate, shiftDate, STATUS_LABEL } from '../api.js';
 import {
@@ -62,6 +62,13 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const [busy, setBusy] = useState(null);       // 'save' | 'submit' | ...
   const [err, setErr] = useState(null);
   const [violations, setViolations] = useState([]);
+  const [saveState, setSaveState] = useState({ kind: 'idle' });  // 자동저장 표시
+
+  // 아직 서버에 안 보낸 줄. 화면을 다시 그려도 유지되어야 하므로 ref 에 둔다.
+  const pending = useRef(new Set());
+  const timer = useRef(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const load = useCallback(async () => {
     setErr(null);
@@ -71,6 +78,8 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       setRows(d.rows.map(toEdit));
       setViolations(d.violations);
       setDirty(false);
+      pending.current.clear();
+      setSaveState({ kind: 'idle' });
     } catch (e) {
       setData(null);
       setErr(e instanceof ApiError ? e.message : '일보를 불러오지 못했습니다.');
@@ -84,6 +93,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
 
   const change = useCallback((ri, key, value) => {
     setRows((old) => old.map((r, i) => (i === ri ? { ...r, [key]: value } : r)));
+    pending.current.add(ri);
     setDirty(true);
   }, []);
 
@@ -95,6 +105,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       for (const k of MOVES) if (next[k] === '') next[k] = '0';
       return next;
     }));
+    pending.current.add(ri);
     setDirty(true);
   }, []);
 
@@ -102,30 +113,86 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const faulty = useMemo(
     () => rows.filter((r) => Object.keys(rowFaults(r)).length > 0).length, [rows]);
 
-  const save = useCallback(async () => {
-    if (!data?.report?.id || busy) return;
-    setBusy('save'); setErr(null);
-    try {
-      const payload = rows.filter(rowTouched).map((r) => ({
+  /**
+   * 보낼 수 있는 줄만 추려 보낸다.
+   *
+   * 규칙을 어긴 줄(재고 초과·사유 없는 차이)은 **일부러 뺀다.** 서버는 트랜잭션
+   * 하나로 받으므로 한 줄이 걸리면 전부 거절된다 — 보고두수를 치는 순간 사유를
+   * 적기도 전에 빨간 오류가 뜨고, 멀쩡한 43줄까지 저장이 안 된다.
+   * 어긴 줄은 표에서 이미 붉게 보이고, 고치면 다음 차례에 저장된다.
+   */
+  const collect = useCallback(() => {
+    const out = [];
+    const sent = [];
+    for (const ri of pending.current) {
+      const r = rowsRef.current[ri];
+      if (!r || !rowTouched(r)) continue;
+      if (Object.keys(rowFaults(r)).length > 0) continue;
+      sent.push(ri);
+      out.push({
         penId: r.penId, categoryId: r.categoryId, batchId: r.batchId ?? null,
         inHead: num(r.inHead), outHead: num(r.outHead),
         internalOutHead: num(r.internalOutHead), soldHead: num(r.soldHead),
         reportedClosingHead: r.reportedClosingHead === '' ? null : num(r.reportedClosingHead),
         varianceReason: r.varianceReason.trim() || null,
         note: r.note.trim() || null,
-      }));
-      if (!payload.length) { setBusy(null); return; }
+      });
+    }
+    return { payload: out, sent };
+  }, []);
+
+  /**
+   * 저장. 끝나고 표를 **다시 불러오지 않는다** — 되불러오면 그 사이 다른 칸에
+   * 치고 있던 내용이 날아간다. 시스템이 정한 값(전일·당일·폐사)만 덮어쓴다.
+   */
+  const flush = useCallback(async () => {
+    if (!data?.report?.id) return;
+    const { payload, sent } = collect();
+    if (!payload.length) {
+      setSaveState((s) => (s.kind === 'saving' ? { kind: 'idle' } : s));
+      return;
+    }
+
+    setSaveState({ kind: 'saving' });
+    try {
       const res = await api.saveRows(data.report.id, payload);
+      for (const ri of sent) pending.current.delete(ri);
+
+      const byKey = new Map(res.rows.map((r) => [`${r.penId ?? ''}|${r.categoryId ?? ''}`, r]));
+      setRows((old) => old.map((r) => {
+        const c = byKey.get(`${r.penId ?? ''}|${r.categoryId ?? ''}`);
+        return c ? { ...r, filled: true, openingHead: c.openingHead,
+                     deadHead: c.deadHead, culledHead: c.culledHead } : r;
+      }));
+
       setViolations(res.violations);
-      setDirty(false);
-      await load();                 // 전일두수·당일두수는 저장 뒤에야 확정된다
+      setDirty(pending.current.size > 0);
+      setSaveState({ kind: 'saved', at: new Date(), held: pending.current.size });
+      setErr(null);
       onChanged?.();
     } catch (e) {
+      setSaveState({ kind: 'error' });
       setErr(e instanceof ApiError ? e.message : '저장하지 못했습니다.');
-    } finally { setBusy(null); }
-  }, [data, rows, busy, load, onChanged]);
+    }
+  }, [data, collect, onChanged]);
 
-  // Ctrl+S — 현장 PC 에서 가장 많이 눌릴 키다
+  // 자동저장 — 타이핑이 멎고 1.2초. 칸마다 보내면 44행 일보가 수백 번 오간다.
+  useEffect(() => {
+    if (!editable || !dirty) return undefined;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(flush, 1200);
+    return () => clearTimeout(timer.current);
+  }, [rows, dirty, editable, flush]);
+
+  // 화면을 떠나기 전에 한 번 더. 자동저장이 아직 안 돌았을 수 있다.
+  useEffect(() => () => { clearTimeout(timer.current); }, []);
+
+  // Ctrl+S 는 남겨 둔다 — 자동저장을 믿지 못할 때 손이 먼저 간다
+  const save = useCallback(async () => {
+    clearTimeout(timer.current);
+    await flush();
+  }, [flush]);
+
   useEffect(() => {
     const fn = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -227,7 +294,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
           <span className="hint">
             <kbd>Tab</kbd> 다음 칸 · <kbd>Enter</kbd> 다음 행 ·
             {' '}<kbd>Ctrl</kbd>+<kbd>Enter</kbd> 이 행 변동없음 ·
-            {' '}<kbd>Ctrl</kbd>+<kbd>S</kbd> 임시저장
+            {' '}<b>자동 저장됩니다</b>
           </span>
         )}
         <span className="spacer" />
@@ -240,9 +307,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
 
         {editable && (
           <>
-            <button className="btn" onClick={save} disabled={!dirty || busy === 'save'}>
-              {busy === 'save' ? '저장 중…' : dirty ? '임시저장' : '저장됨'}
-            </button>
+            <SaveState state={saveState} dirty={dirty} />
             <button className="btn primary" onClick={submit}
                     disabled={busy != null || missing > 0 || faulty > 0}>
               {busy === 'submit' ? '제출 중…' : '제출'}
@@ -261,6 +326,30 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       </div>
     </>
   );
+}
+
+/**
+ * 저장 상태. 조용히 저장하는 것이 가장 나쁘다 — 저장됐는지 모르면
+ * 사람은 Ctrl+S 를 계속 누르거나, 안 눌렀다고 생각하고 다시 친다.
+ */
+function SaveState({ state, dirty }) {
+  if (state.kind === 'saving') {
+    return <span className="savestate"><i className="spin" />저장 중…</span>;
+  }
+  if (state.kind === 'error') {
+    return <span className="savestate bad">저장 못 했습니다</span>;
+  }
+  if (state.kind === 'saved') {
+    const t = state.at.toTimeString().slice(0, 5);
+    return (
+      <span className={state.held ? 'savestate warn' : 'savestate ok'}>
+        {state.held
+          ? `${t} 저장 · ${state.held}행은 고쳐야 저장됩니다`
+          : `${t} 저장됨`}
+      </span>
+    );
+  }
+  return <span className="savestate">{dirty ? '곧 저장합니다' : '자동 저장'}</span>;
 }
 
 /**

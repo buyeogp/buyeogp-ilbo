@@ -196,6 +196,19 @@ try {
   const status = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
   ck('본사는 전 돈사 현황을 본다', status.body?.houses?.length === 12,
     `실제 ${status.body?.houses?.length}`);
+
+  // 제출 현황은 본사 화면이지만 팀장도 부를 수 있다. 그때 남의 돈사가 보이면 안 된다.
+  {
+    const save = cookie;
+    cookie = '';
+    await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+    const mine = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
+    ck('팀장의 제출 현황은 담당 돈사만', mine.body?.houses?.length === 1
+      && mine.body.houses[0].code === 'JADON',
+      `실제 ${mine.body?.houses?.length}개 ${JSON.stringify(mine.body?.houses?.map((h) => h.code))}`);
+    cookie = save;
+  }
+
   ck('자돈사가 확정으로 보인다',
     status.body?.houses?.find((h) => h.code === 'JADON')?.status === 'confirmed');
 
