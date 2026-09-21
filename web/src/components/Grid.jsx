@@ -123,6 +123,15 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
   const cell = (r, ri, key, ci, faults) => {
     const v = r[key] ?? '';
     const text = TEXT.has(key);
+
+    // 못 쓰는 칸은 **못 쓰게 보여야** 한다. 입력칸 모양 그대로 두고 조용히
+    // 안 받으면, 치는 사람은 자기가 뭘 잘못했는지 알 길이 없다.
+    if (readOnly) {
+      return (
+        <td key={key} className={text ? 'readonly text' : 'readonly'}>{v}</td>
+      );
+    }
+
     return (
       <td key={key} className={faults[key] ? 'cell bad' : 'cell'}>
         <input
@@ -134,7 +143,6 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
           className={!text && v === '0' ? 'zero' : undefined}
           value={v}
           placeholder={text ? '' : '·'}
-          readOnly={readOnly}
           style={text ? { textAlign: 'left' } : undefined}
           onFocus={(e) => e.target.select()}
           onKeyDown={(e) => onKeyDown(e, ri, ci)}

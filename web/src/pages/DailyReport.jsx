@@ -19,6 +19,13 @@ import {
 const CONFIRMERS = ['hq_staff', 'hq_manager'];
 const UNCONFIRMERS = ['farm_manager', 'hq_staff', 'hq_manager'];
 
+/** 왜 못 고치는지. 막는 것보다 이유를 말하는 게 화면의 일이다 (§6.4 P10) */
+const LOCKED = {
+  submitted: '제출된 일보는 고칠 수 없습니다. 고쳐야 하면 정정전표를 발행하십시오.',
+  confirmed: '확정된 일보는 고칠 수 없습니다. 고쳐야 하면 정정전표를 발행하십시오.',
+  locked: '마감된 일보는 고칠 수 없습니다.',
+};
+
 const str = (v) => (v == null ? '' : String(v));
 
 const toEdit = (r) => ({
@@ -156,6 +163,20 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const canConfirm = me.user.roles.some((r) => CONFIRMERS.includes(r));
   const canUnconfirm = me.user.roles.some((r) => UNCONFIRMERS.includes(r));
 
+  // 입력이 막혀 있으면 반드시 이유를 적는다. 좁은 화면은 따로 알리고 있다.
+  let locked = null;
+  if (!narrow && !editable) {
+    if (!status) {
+      locked = data.canWrite
+        ? '아직 시작하지 않은 일보입니다. 아래 「일보 시작」을 누르면 입력할 수 있습니다.'
+        : '아직 시작하지 않은 일보입니다. 담당 팀장이 시작해야 합니다.';
+    } else if (status !== 'draft') {
+      locked = LOCKED[status];
+    } else {
+      locked = '담당 돈사가 아니어서 보기만 할 수 있습니다. 입력은 담당 팀장 계정에서 합니다.';
+    }
+  }
+
   return (
     <>
       <div className="house-banner">
@@ -176,6 +197,15 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       {narrow && (
         <div className="mobile-note">
           휴대폰에서는 <b>보기만</b> 됩니다. 입력은 사무실 컴퓨터에서 해 주십시오.
+        </div>
+      )}
+
+      {locked && (
+        <div className="notes">
+          <div className="note info">
+            <span className="where">{STATUS_LABEL[status] ?? '미시작'}</span>
+            <span>{locked}</span>
+          </div>
         </div>
       )}
 
