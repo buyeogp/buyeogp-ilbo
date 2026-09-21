@@ -873,3 +873,22 @@ table.k kbd {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 }
+
+/* 언어 고르기 — 설명서 머리에 */
+.langpick { display: inline-flex; gap: 3px; }
+
+/* 용어 카드 — 인쇄해서 컴퓨터 옆에 붙이는 한 장 */
+.glossary .gl-group { break-inside: avoid; margin-bottom: 18px; }
+.glossary h3 { margin-top: 18px; }
+table.k.gl { max-width: 780px; }
+table.k.gl th:first-child, table.k.gl td:first-child { width: 170px; }
+table.k.gl th:nth-child(2) { width: 46%; }
+table.k.gl td.ko { font-weight: 600; color: var(--ink); }
+/* 네팔어 칸은 손으로 채운다 — 줄을 그어 둔다 */
+table.k.gl td.blank { background: var(--surface-2); min-width: 150px; height: 30px; }
+
+@media print {
+  .langpick { display: none !important; }
+  table.k.gl td.blank { background: #fff !important; }
+  .glossary .gl-group { page-break-inside: avoid; }
+}
