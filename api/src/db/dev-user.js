@@ -23,11 +23,15 @@ if (config.env === 'production') {
 
 const drop = process.argv.includes('--drop');
 
-// dev.lead 는 분만사 담당 팀장 — 돈방 × 축종 돈사라 그리드가 가장 복잡하다.
+// 이름을 「[시험]」으로 시작하게 둔다. 담당 표와 감사로그에서 배두·햄·라주·펨바
+// 옆에 나란히 서기 때문에, 현장 사람으로 읽히면 안 된다.
+// 감사로그는 지울 수 없으므로 여기 남긴 이름이 영구히 남는다.
+//
+// dev.lead 는 분만사 담당 — 돈방 × 축종 돈사라 그리드가 가장 복잡하다.
 const PEOPLE = [
-  { loginId: 'dev.lead', name: '개발 팀장', role: 'team_lead',
+  { loginId: 'dev.lead', name: '[시험] 팀장', role: 'team_lead',
     houses: ['BUNMAN1'], note: '분만사 1동' },
-  { loginId: 'dev.hq', name: '개발 본사', role: 'hq_staff', houses: [], note: '전 돈사 · 확정' },
+  { loginId: 'dev.hq', name: '[시험] 본사', role: 'hq_staff', houses: [], note: '전 돈사 · 확정' },
 ];
 
 const envFile = {};
