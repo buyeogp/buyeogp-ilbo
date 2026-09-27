@@ -26,7 +26,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     environment:
-      APP_DOMAIN: ${APP_DOMAIN:-ilbo.example.co.kr}
+      APP_DOMAIN: ${APP_DOMAIN:-ilbo.piggp.com}
     depends_on:
       - api
 

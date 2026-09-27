@@ -35,6 +35,24 @@ Puppeteer(Chromium)로 굽는다. Cloudflare Workers·Supabase Edge Functions(De
 
 ---
 
+## 도메인
+
+| | |
+|---|---|
+| 도메인 | **piggp.com** (hosting.kr) |
+| 일보 주소 | `ilbo.piggp.com` |
+| 등록 명의 | 김영빈 실장 **개인** |
+
+`APP_DOMAIN` 이 이 이름이다. Caddy 가 이 이름으로 Let's Encrypt 인증서를 받으므로
+**실제 소유한 도메인이어야** 한다. 개발 PC 에서는 Caddy 를 띄우지 않아 값이 쓰이지 않는다.
+
+hosting.kr 에서 샀으므로 네임서버가 아직 hosting.kr 을 가리킨다.
+Cloudflare 로 옮겨야 Pages(6단계)를 붙일 수 있다 — 런북 5단계.
+
+**명의가 개인이다.** 회사 시스템이 이 도메인 하나에 매달리는데 등록자가 개인이면,
+담당자가 바뀔 때 접속 주소를 잃는다. 갱신을 놓쳐도 같은 일이 난다.
+운영 전환 전에 법인 명의로 옮기거나, 최소한 갱신 알림이 회사 메일로 가게 해 둔다.
+
 ## 1. Supabase 프로젝트
 
 1. 새 프로젝트 · 리전 **Northeast Asia (Seoul)** · 플랜 **Free** (운영 전환 때 Pro 로 올린다)
