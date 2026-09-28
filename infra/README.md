@@ -35,6 +35,40 @@ Puppeteer(Chromium)로 굽는다. Cloudflare Workers·Supabase Edge Functions(De
 
 ---
 
+## 앱 서버 (Lightsail) — 2026-09-28 개설
+
+| | |
+|---|---|
+| 인스턴스 | `buyeogp-api` · Ubuntu 24.04 LTS · 2GB / 2 vCPU / 60GB · 월 $12 |
+| 지역 | **서울** ap-northeast-2a |
+| 고정 IP | **43.202.152.109** (`buyeogp-ip`) |
+| 방화벽 | 22 SSH · 80 HTTP · 443 HTTPS |
+| AWS 계정 | 프로젝트 「Sky is the Limit」 (061534657492) · 관리 계정 buyeogp (939005125427) |
+
+### 새 AWS 계정은 서울을 못 쓴다 — 개설하며 막힌 곳
+
+2025년 이후 신규 가입은 「간편 모드」로 시작하고, **주소가 한국이면 지역이
+시드니(ap-southeast-2)로 고정**된다. 서울에서 Lightsail 을 열면
+`lightsail:GetRegions 액세스 거부` 가 난다. 시드니에 서버를 두면 서울의
+Supabase 와 왕복마다 0.13초가 붙어 일보 한 번 여는 데 2~3초가 걸린다.
+
+푼 순서:
+
+1. **Paid plan 으로 업그레이드** — Free plan 은 크레딧 소진·6개월 뒤 계정이 닫힌다
+2. **고급 기능 활성화** (settings.aws.com → 프로젝트 → 작업) — **되돌릴 수 없다.**
+   지출 한도(자동 정지)가 사라지고 Budgets 알림으로 대신한다
+3. **지역 제한 SCP 수정** — Organizations → 서비스 제어 정책 →
+   `AdvancedModeRegionRestrictionSecurityControlPolicy` → `RegionFloor` 의
+   `aws:RequestedRegion` 목록에 `"ap-northeast-2"` 추가.
+   편집기가 35번 줄 `builderid:*` 를 오류로 표시하지만 AWS 원래 내용이다 — 무시하고 저장
+4. **표시 지역 설정** — 콘솔 ⚙ → 모든 사용자 설정 보기 → **「계정 설정」 탭** →
+   표시되는 리전에 서울 추가. 이걸 안 하면 권한이 있어도 서울 화면에
+   「Region restricted」 창이 떠서 쓸 수 없다. **서울 화면에서는 고칠 수 없으니
+   시드니 주소로 들어가서** 고친다
+
+스테이징이나 두 번째 서버를 만들 때도 같은 계정이면 이미 풀려 있다.
+**새 계정을 만들면 전부 다시 해야 한다.**
+
 ## 도메인
 
 | | |
