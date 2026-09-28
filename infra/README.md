@@ -43,7 +43,7 @@ Puppeteer(Chromium)로 굽는다. Cloudflare Workers·Supabase Edge Functions(De
 | 지역 | **서울** ap-northeast-2a |
 | 고정 IP | **43.202.152.109** (`buyeogp-ip`) |
 | 방화벽 | 22 SSH · 80 HTTP · 443 HTTPS |
-| AWS 계정 | 프로젝트 「Sky is the Limit」 (061534657492) · 관리 계정 buyeogp (939005125427) |
+| AWS 계정 | 프로젝트 「Sky is the Limit」 (061534657492) · 관리 계정 buyeogp (939005125427) · 루트 메일 `buyeogp2026@gmail.com` |
 
 ### 새 AWS 계정은 서울을 못 쓴다 — 개설하며 막힌 곳
 
@@ -68,6 +68,27 @@ Supabase 와 왕복마다 0.13초가 붙어 일보 한 번 여는 데 2~3초가 
 
 스테이징이나 두 번째 서버를 만들 때도 같은 계정이면 이미 풀려 있다.
 **새 계정을 만들면 전부 다시 해야 한다.**
+
+### 계정·메일 — 누가 무엇을 쥐고 있나
+
+| 메일 | 쓰이는 곳 | 소유 |
+|---|---|---|
+| `buyeogp2026@gmail.com` | AWS **루트 메일** · Builder ID 로그인(Google 소셜 로그인, TOTP MFA 등록) | **개발자가 만든 AWS 전용 메일** |
+| `buyeogp@gmail.com` | 발주처가 원래 쓰던 메일 · Budgets 알림 · 결제 대체 연락처 | 발주처 |
+| (개발자 개인 메일) | Builder ID 복구 메일 · Budgets 알림(개발 기간만) | 개발자 |
+
+`buyeogp@gmail.com` 은 개발 시작 전부터 발주처가 쓰고 있어서, AWS 는 뒤에 2026 을
+붙인 메일로 만들었다. 카드·청구 주소는 발주처 것이다.
+
+- **Budgets** — 관리 계정에 `buyeogp-monthly-20` (월 $20, 85%·100%·예상 초과 시 메일).
+  고급 기능을 켜면서 지출 한도가 사라져 **돈이 새도 멈추지 않는다** — 이 메일이 유일한 경보다
+- 로그인하면 역할 `AccountFullAccessRole` 로 들어간다. 루트가 아니므로
+  「보안 자격 증명」 메뉴가 없다. 루트로 들어가려면 시크릿 창에서 「루트 사용자」로
+
+**인수인계 때 넘길 것** — `buyeogp2026@gmail.com` Google 계정을 통째로 발주처에:
+비밀번호 변경 · 2단계 인증 휴대폰을 발주처 번호로 · Google 복구 메일/번호 교체 ·
+Builder ID 복구 메일을 `buyeogp@gmail.com` 으로 · Builder ID MFA 를 발주처 휴대폰에 재등록 ·
+AWS 연락처 전화번호를 발주처 번호로 · Budgets 알림 수신자에서 개발자 개인 메일 빼기.
 
 ## 도메인
 
