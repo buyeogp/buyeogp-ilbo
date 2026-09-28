@@ -27,6 +27,11 @@ pool.on('error', (e) => {
   console.error('[db] 유휴 연결 오류:', e.message);
 });
 
+// 「오늘」은 한국 날짜다 (db/022). DB 기본값으로도 걸었지만, 풀러가 그 전에 열어 둔
+// 연결을 다시 쓰면 UTC 가 남는다 — 연결마다 한 번 더 못박는다
+const KST = "SET TIME ZONE 'Asia/Seoul'";
+pool.on('connect', (c) => { c.query(KST).catch(() => {}); });
+
 /**
  * 신원을 밝힌 트랜잭션. 업무 쿼리는 전부 이 안에서 돈다.
  *

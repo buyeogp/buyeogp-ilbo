@@ -30,6 +30,8 @@ function ensure() {
     max: 4,                       // 계정 관리는 드물게 쓴다. 업무 풀을 굶기지 않는다
     application_name: 'buyeogp-admin',
   });
+  // 「오늘」은 한국 날짜다 — pool.js 와 같은 이유 (db/022)
+  pool.on('connect', (c) => { c.query("SET TIME ZONE 'Asia/Seoul'").catch(() => {}); });
   return pool;
 }
 
