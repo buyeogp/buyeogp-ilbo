@@ -20,6 +20,10 @@ services:
     build:
       context: ..
       dockerfile: infra/caddy.Dockerfile
+      args:
+        # 화면용 Sentry 주소. 바꾸면 --build 로 다시 구워야 반영된다
+        VITE_SENTRY_DSN: ${SENTRY_DSN_WEB:-}
+        VITE_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     restart: unless-stopped
     ports:
       - "80:80"

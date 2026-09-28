@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, today } from './api.js';
+import { setObserveUser } from './observe.js';
 import { Login } from './pages/Login.jsx';
 import { DailyReport } from './pages/DailyReport.jsx';
 import { HouseStatus } from './pages/HouseStatus.jsx';
@@ -23,6 +24,7 @@ export function App() {
     () => api.me().then(setMe).catch(() => setMe(null)), []);
 
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { setObserveUser(me?.user); }, [me]);
 
   if (me === undefined) return <div className="center">불러오는 중…</div>;
   if (me === null) return <Login onDone={refresh} />;

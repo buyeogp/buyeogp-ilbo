@@ -13,6 +13,10 @@ WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
+# 화면 오류 수집(Sentry) 주소는 빌드할 때 박힌다 — 비어 있으면 Sentry 코드를 싣지 않는다
+ARG VITE_SENTRY_DSN=
+ARG VITE_SENTRY_ENVIRONMENT=production
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT
 RUN npm run build
 
 # ── 2단계 : Caddy 에 결과물만 싣는다 ─────────────────────────────────

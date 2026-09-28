@@ -24,6 +24,7 @@
     "setup:admin": "node src/db/setup-admin-role.js"
   },
   "dependencies": {
+    "@sentry/node": "^10.75.3",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "pg": "^8.23.0",

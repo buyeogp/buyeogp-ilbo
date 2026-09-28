@@ -11,6 +11,7 @@
 import { resolve } from '../auth/session.js';
 import { config } from '../config.js';
 import { describeDbError } from '../db/pool.js';
+import { report } from '../observe.js';
 
 export class HttpError extends Error {
   constructor(status, code, message) {
@@ -80,10 +81,11 @@ export function errorHandler(err, req, res, _next) {
   }
   const db = describeDbError(err);
   if (db) {
-    if (db.status >= 500) console.error('[db]', err);
+    if (db.status >= 500) { console.error('[db]', err); report(err, req); }
     return res.status(db.status).json({ error: db.code, message: db.message });
   }
   console.error('[500]', req.method, req.path, err);
+  report(err, req);
   res.status(500).json({
     error: 'internal',
     message: '처리 중 문제가 생겼습니다. 같은 일이 반복되면 알려 주십시오.',

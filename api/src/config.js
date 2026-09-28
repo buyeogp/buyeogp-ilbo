@@ -73,7 +73,10 @@ export const config = {
     remindTime: env.REPORT_REMIND_TIME ?? '18:00',
   },
 
-  sentryDsn: env.SENTRY_DSN ?? '',
+  sentry: {
+    dsn: env.SENTRY_DSN ?? '',
+    environment: env.SENTRY_ENVIRONMENT || env.APP_ENV || 'development',
+  },
 };
 
 /** 본사 등급은 세션이 더 길다 (§6.7) */
