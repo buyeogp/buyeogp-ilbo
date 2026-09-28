@@ -14,9 +14,12 @@
 name: buyeogp
 
 services:
-  # ── 리버스 프록시 · 자동 HTTPS ───────────────────────────────────
+  # ── 리버스 프록시 · 자동 HTTPS · 화면 ────────────────────────────
+  # 화면(web)도 여기서 낸다. caddy.Dockerfile 이 web 을 빌드해 이미지에 싣는다.
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: ..
+      dockerfile: infra/caddy.Dockerfile
     restart: unless-stopped
     ports:
       - "80:80"

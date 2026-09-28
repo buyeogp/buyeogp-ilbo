@@ -1,16 +1,45 @@
-# 부여GP 일보 시스템 — 자동 HTTPS 리버스 프록시
-# 도메인은 .env 의 APP_DOMAIN 으로 주입된다.
+# 부여GP 일보 시스템 — 자동 HTTPS · 화면 · API
+# 도메인은 .env 의 APP_DOMAIN 으로 주입된다 (ilbo.piggp.com).
+#
+# 한 주소에서 둘을 낸다.
+#   /api/*   → api 컨테이너 (Node)
+#   그 밖    → 화면 (caddy.Dockerfile 이 구워 넣은 /srv/web)
+# 같은 주소라 CORS 설정이 필요 없고, 세션 쿠키도 그대로 붙는다.
 
 {$APP_DOMAIN} {
 	encode zstd gzip
 
 	# SSE (§5.8 본사 예외 큐 실시간) — 버퍼링을 끈다
-	@sse path /api/events*
-	reverse_proxy @sse api:3000 {
-		flush_interval -1
+	handle /api/events* {
+		reverse_proxy api:3000 {
+			flush_interval -1
+		}
 	}
 
-	reverse_proxy api:3000
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Docker healthcheck 가 아닌 사람이 확인할 때 쓰는 주소
+	handle /healthz {
+		reverse_proxy api:3000
+	}
+
+	# 화면. 화면이 /report/5/2026-09-28 같은 주소를 쓰는데 그 파일은 없다 —
+	# 모르는 주소는 index.html 로 돌려야 새로고침(F5)해도 404 가 나지 않는다.
+	handle {
+		root * /srv/web
+
+		# 빌드 결과물은 파일 이름에 해시가 붙어 있어 오래 캐시해도 된다.
+		# 나머지(index.html 포함)는 매번 확인하게 한다 — 배포하면 바로 새 화면이 뜨도록.
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@fresh not path /assets/*
+		header @fresh Cache-Control "no-cache"
+
+		try_files {path} /index.html
+		file_server
+	}
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

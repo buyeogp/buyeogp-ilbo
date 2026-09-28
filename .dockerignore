@@ -1,0 +1,12 @@
+# 저장소 루트를 빌드 맥락으로 쓰는 이미지(caddy.Dockerfile)용.
+# 빠뜨리면 node_modules 수백 MB 와 원천 엑셀이 빌드 맥락에 실린다.
+**/node_modules
+web/dist
+api/out
+.git
+자료들
+design
+db/migration
+**/*.env
+**/.env
+!**/*.env.example
