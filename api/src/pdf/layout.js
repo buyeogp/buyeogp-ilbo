@@ -251,17 +251,12 @@ function vaccineBlock(rp) {
   </table>`;
 }
 
-export function renderDailyReport(rp) {
+/** 일보 한 장 (div.sheet). 여러 장을 한 문서에 이어 붙일 수 있다 */
+export function renderSheet(rp) {
   const layout = LAYOUT[rp.house.countBasis] ?? penLayout;
-  return `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
-<title>${esc(rp.house.name)} 일지 ${esc(rp.reportDate)}</title>
-<style>${styles}</style></head>
-<body>${rp.preview ? `
-<div class="preview-mark">확정 전 미리보기</div>` : ''}<div class="sheet">
+  return `<div class="sheet">
 ${rp.preview ? `
   <div class="preview-bar">확정 전 미리보기 — <b>공식 출력물이 아닙니다.</b> 본사가 확정한 뒤 다시 출력하십시오.</div>` : ''}
-
   <div class="hd">
     <div>
       <p class="farm">${esc(rp.farm)}</p>
@@ -296,5 +291,40 @@ ${rp.preview ? `
     <div class="hash">무결성 ${esc((rp.contentHash ?? '').slice(0, 32))}</div>
   </div>
 
-</div></body></html>`;
+</div>`;
+}
+
+const doc = (title, body, preview) => `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<title>${esc(title)}</title>
+<style>${styles}</style></head>
+<body>${preview ? `
+<div class="preview-mark">확정 전 미리보기</div>` : ''}${body}</body></html>`;
+
+export function renderDailyReport(rp) {
+  return doc(`${rp.house.name} 일지 ${rp.reportDate}`, renderSheet(rp), rp.preview);
+}
+
+/**
+ * 하루치 묶음 — 확정된 돈사를 한 문서로. 빠진 돈사가 있으면 맨 앞에 알린다:
+ * 빠진 줄 모르고 철해 두면 그 돈사의 그 날 종이가 영영 없다.
+ * @param {string} date
+ * @param {object[]} sheets  렌더할 일보들 (contentHash · printedAt 이 채워진 것)
+ * @param {{name: string, why: string}[]} missing
+ */
+export function renderDayBundle(date, sheets, missing, printedAt) {
+  const cover = missing.length ? `<div class="sheet cover">
+  <div class="hd">
+    <div><p class="farm">${esc(sheets[0]?.farm ?? '')}</p><h1>일보 묶음 — 빠진 돈사</h1></div>
+    <div class="date">${KDATE(date)}</div>
+  </div>
+  <p class="cover-lead">이 묶음에는 <b>확정된 일보 ${sheets.length}장</b>이 들어 있습니다.
+    아래 돈사는 <b>확정되지 않아 빠졌습니다.</b> 확정된 뒤 따로 출력해 함께 철해 주십시오.</p>
+  <table class="cover-tbl">
+    <thead><tr><th>돈사</th><th>상태</th></tr></thead>
+    <tbody>${missing.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.why)}</td></tr>`).join('')}</tbody>
+  </table>
+  <div class="foot"><div>부여GP 돈사 일보 시스템 · 출력 ${esc(printedAt)}</div></div>
+</div>` : '';
+  return doc(`일보 ${date}`, cover + sheets.map(renderSheet).join('\n'), false);
 }

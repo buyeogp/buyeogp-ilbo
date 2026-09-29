@@ -13,8 +13,9 @@
 import { Router } from 'express';
 import { tx } from '../../db/pool.js';
 import { HttpError, canAccessHouse, requireAuth, wrap } from '../middleware.js';
-import { reportFromDb } from '../../pdf/fromDb.js';
-import { renderPdf } from '../../pdf/render.js';
+import { JONGBU_SHEET, combineJongbu, reportFromDb } from '../../pdf/fromDb.js';
+import { contentHash as hashOf, htmlToPdf, renderPdf } from '../../pdf/render.js';
+import { renderDayBundle } from '../../pdf/layout.js';
 import { putFile } from '../../photos.js';
 
 export const pdfRouter = Router({ mergeParams: true });
@@ -62,5 +63,71 @@ pdfRouter.get('/', wrap(async (req, res) => {
   res.set('Content-Type', 'application/pdf');
   res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(name)}`);
   res.set('X-Content-Hash', contentHash);
+  res.send(pdf);
+}));
+
+/**
+ * 하루치 묶음 — GET /api/pdf/day?date=YYYY-MM-DD  (본사 보관철용)
+ *
+ * 그 날 **확정된** 일보만 돈사 순서대로 한 파일에 싣는다. 종부·임신사 네 돈사는
+ * 엑셀처럼 한 장으로 합친다(넷 모두 확정됐을 때만 — 일부만이면 확정된 것만 합친다).
+ * 확정 안 된 돈사가 있으면 맨 앞 쪽에 목록을 싣는다.
+ * 실린 일보마다 출력 기록(printed_at)을 남긴다.
+ */
+export const dayPdfRouter = Router();
+dayPdfRouter.use(requireAuth);
+
+const WHY = { draft: '작성 중', submitted: '제출됨 · 확정 대기' };
+
+dayPdfRouter.get('/day', wrap(async (req, res) => {
+  const date = String(req.query.date ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new HttpError(400, 'bad_request', '날짜 형식이 올바르지 않습니다.');
+  }
+
+  const { sheets, missing, ids } = await tx(req.user.userId, async (q) => {
+    const houses = (await q.all(
+      `SELECT h.id, h.code, h.name, dr.id AS report_id, dr.status::text AS status
+         FROM app.house h
+         LEFT JOIN app.daily_report dr ON dr.house_id = h.id AND dr.report_date = $1::date
+        WHERE h.active ORDER BY h.seq`, [date]))
+      .filter((h) => canAccessHouse(req.user, h.id));
+
+    const done = [];
+    const miss = [];
+    for (const h of houses) {
+      if (h.status === 'confirmed' || h.status === 'locked') {
+        done.push({ ...(await reportFromDb(q, h.report_id)), reportId: h.report_id });
+      } else {
+        miss.push({ name: h.name, why: WHY[h.status] ?? '일보 없음 (미시작)' });
+      }
+    }
+
+    // 종부·임신사는 한 장으로 — 첫 돈사(순치사) 자리에
+    const jb = done.filter((r) => JONGBU_SHEET.includes(r.house.code));
+    const out = [];
+    for (const r of done) {
+      if (!JONGBU_SHEET.includes(r.house.code)) out.push(r);
+      else if (r === jb[0]) out.push(jb.length > 1 ? combineJongbu(jb) : r);
+    }
+    return { sheets: out.filter((r) => r.rows.length), missing: miss, ids: done.map((r) => r.reportId) };
+  });
+
+  if (!sheets.length) {
+    throw new HttpError(409, 'none', '이 날 확정된 일보가 없어 출력할 것이 없습니다.');
+  }
+
+  const printedAt = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);
+  for (const s of sheets) { s.contentHash = hashOf(s); s.printedAt = printedAt; }
+  const pdf = await oneAtATime(() => htmlToPdf(renderDayBundle(date, sheets, missing, printedAt)));
+
+  await tx(req.user.userId, (q) =>
+    q('UPDATE app.daily_report SET printed_at = now() WHERE id = ANY($1::bigint[])', [ids]));
+
+  const name = `일보-${date}${missing.length ? `-${sheets.length}장(빠짐 ${missing.length})` : ''}.pdf`;
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(name)}`);
+  res.set('X-Sheets', String(sheets.length));
+  res.set('X-Missing', String(missing.length));
   res.send(pdf);
 }));

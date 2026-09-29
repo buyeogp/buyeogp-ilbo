@@ -49,6 +49,13 @@ export function HouseStatus({ date }) {
         <span className="badge confirmed">확정 {done} / {houses.length}</span>
         {late > 0 && <span className="badge draft">미시작 {late}</span>}
         <span className="spacer" />
+        {/* 하루치 묶음 — 확정된 돈사만, 종부·임신사는 한 장. 빠진 돈사는 첫 쪽에 */}
+        <button className="btn" disabled={done === 0}
+                title={done === 0 ? '확정된 일보가 없습니다'
+                  : `확정된 ${done}개 돈사를 한 파일로 엽니다. 종부·임신사 네 돈사는 한 장입니다`}
+                onClick={() => window.open(`/api/pdf/day?date=${date}`, '_blank')}>
+          하루치 PDF{done ? ` (확정 ${done})` : ''}
+        </button>
         <button className="btn" onClick={() => setLogOpen(true)}>
           폐사·도태 일지{dueAll > 0 ? ` · 사진 보완 ${dueAll}` : ''}
         </button>

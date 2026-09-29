@@ -361,6 +361,8 @@ export const SECTIONS = [
         t('작성자와 확인자가 서명합니다.', 'The writer and the checker sign it.'),
         t('돈사별 사무실에 보관합니다.', 'Keep it in the office of each house.'),
       ] },
+      { p: t('*본사*는 제출 현황 위쪽 *「하루치 PDF」* 로 그 날 확정된 일보를 한 파일에 모아 뽑습니다. 종부·임신사 네 돈사(순치사·종부사·임신1동·임신2동)는 엑셀처럼 *한 장*에 실립니다. 확정 안 된 돈사가 있으면 *첫 쪽에 빠진 돈사 목록*이 나옵니다 — 확정된 뒤 따로 뽑아 함께 철합니다.',
+             '*Head office* uses *"하루치 PDF"* at the top of the status board to print all confirmed reports of the day in one file. The four breeding houses print on *one page*, as in Excel. If any house is not confirmed, *the first page lists what is missing* — print those later and file them together.') },
       { p: t('확정 전에는 같은 자리에 *「PDF 미리보기」* 가 있습니다. 「확정 전 미리보기」 표시가 찍혀 공식 종이로 쓸 수 없습니다 — 제출 전에 엑셀이나 실제 두수와 맞춰 볼 때 씁니다.',
              'Before confirmation the same place shows *"PDF 미리보기"*. It carries a "preview" mark and cannot be used as the official paper — use it to check against Excel or real counts before submitting.') },
       { p: t('출력물에는 확인 번호가 찍힙니다. 종이와 컴퓨터의 내용이 같다는 표시입니다. *종이를 손으로 고치지 않습니다.* 고치면 번호가 안 맞습니다.',

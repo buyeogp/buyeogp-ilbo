@@ -54,7 +54,12 @@ export async function renderPdf(report, { launch } = {}) {
   rp.printedAt ??= new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);
 
   const html = renderDailyReport(rp);
+  const pdf = await htmlToPdf(html, { launch });
+  return { pdf, html, contentHash: rp.contentHash };
+}
 
+/** 한 번 굽는다. 일보 한 장이든 하루치 묶음이든 같다 */
+export async function htmlToPdf(html, { launch } = {}) {
   const puppeteer = (await import('puppeteer-core')).default;
   const browser = await puppeteer.launch({
     executablePath: chromePath(),
@@ -71,7 +76,7 @@ export async function renderPdf(report, { launch } = {}) {
       printBackground: true,
       preferCSSPageSize: true,
     });
-    return { pdf, html, contentHash: rp.contentHash };
+    return pdf;
   } finally {
     await browser.close();
   }

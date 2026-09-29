@@ -85,3 +85,28 @@ export async function reportFromDb(q, reportId) {
     })),
   };
 }
+
+/**
+ * 종부 임신사 일지 — 순치사 · 종부사 · 임신1동 · 임신2동을 한 장에 (현행 엑셀 양식).
+ * 네 돈사는 한 팀장이 함께 쓰고 종이도 한 장으로 철한다. 양식(categoryLayout)이
+ * 돈사 이름으로 묶어 돈사별 소계와 전체 합계를 낸다.
+ * 무결성 값이 돈사끼리 섞이지 않게 줄마다 돈사 코드를 붙인다.
+ */
+export const JONGBU_SHEET = ['SUNCHI', 'JONGBU', 'IMSIN1', 'IMSIN2'];
+
+export function combineJongbu(parts) {
+  const uniq = (xs) => [...new Set(xs.filter(Boolean))].join(' · ');
+  const first = parts[0];
+  return {
+    farm: first.farm,
+    house: { code: 'JONGBU_SHEET', name: '종부 임신사', countBasis: 'category' },
+    reportDate: first.reportDate,
+    status: first.status,
+    author: uniq(parts.map((p) => p.author)),
+    confirmedBy: uniq(parts.map((p) => p.confirmedBy)),
+    reportNo: `${first.reportDate.replace(/-/g, '')}-JONGBU`,
+    noteText: parts.filter((p) => p.noteText).map((p) => `[${p.house.name}] ${p.noteText}`).join('\n'),
+    vaccinations: [],
+    rows: parts.flatMap((p) => p.rows.map((r) => ({ ...r, penCode: p.house.code }))),
+  };
+}

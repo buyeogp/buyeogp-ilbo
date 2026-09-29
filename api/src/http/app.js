@@ -9,7 +9,7 @@ import { attachUser, errorHandler, noStore, HttpError } from './middleware.js';
 import { authRouter } from './routes/auth.js';
 import { reportsRouter } from './routes/reports.js';
 import { deathsRouter, deathLogRouter } from './routes/deaths.js';
-import { pdfRouter } from './routes/pdf.js';
+import { pdfRouter, dayPdfRouter } from './routes/pdf.js';
 import { adminRouter } from './routes/admin.js';
 
 export function createApp() {
@@ -35,6 +35,7 @@ export function createApp() {
   // 폐사·도태는 일보 아래에 있다. reportsRouter 의 /:houseId/:date 가 먼저 잡지 않게 앞에 둔다
   app.use('/api/reports/:reportId/deaths', deathsRouter);
   app.use('/api/reports/:reportId/pdf', pdfRouter);
+  app.use('/api/pdf', dayPdfRouter);               // 하루치 묶음
   app.use('/api/deaths', deathLogRouter);          // 폐사·도태 일지 — 날짜 하나, 돈사 여럿
   app.use('/api/reports', reportsRouter);
   // 계정·담당 관리. 여기만 다른 DB 연결을 쓴다 — 업무 데이터가 안 보이는 연결이다

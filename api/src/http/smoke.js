@@ -287,6 +287,19 @@ try {
   const printed = (await admin.query('select printed_at from app.daily_report where id=$1', [reportId])).rows[0];
   ck('공식 출력은 출력 기록을 남긴다', printed?.printed_at != null);
 
+  // 하루치 묶음 — 확정된 것만 싣고, 빠진 돈사는 앞 쪽에 알린다
+  {
+    const r = await fetch(`${base}/api/pdf/day?date=${TEST_DATE}`, { headers: { cookie } });
+    const buf = Buffer.from(await r.arrayBuffer());
+    ck('하루치 묶음 PDF', r.status === 200 && buf.subarray(0, 5).toString() === '%PDF-',
+      `실제 ${r.status}`);
+    ck('묶음에는 확정된 자돈사 1장, 나머지 11개 돈사는 빠진 목록',
+      r.headers.get('x-sheets') === '1' && r.headers.get('x-missing') === '11',
+      `실제 ${r.headers.get('x-sheets')}장 · 빠짐 ${r.headers.get('x-missing')}`);
+    const none = await fetch(`${base}/api/pdf/day?date=2031-12-31`, { headers: { cookie } });
+    ck('확정된 일보가 없는 날은 409', none.status === 409, `실제 ${none.status}`);
+  }
+
   const status = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
   ck('본사는 전 돈사 현황을 본다', status.body?.houses?.length === 12,
     `실제 ${status.body?.houses?.length}`);

@@ -158,5 +158,8 @@ col.w-txt  { width: 40mm; }
   transform: rotate(-18deg); font-size: 56pt; font-weight: 700;
   color: rgba(180, 40, 40, .10); pointer-events: none; z-index: 0;
 }
+.cover-lead { font-size: 10pt; margin: 6mm 0 4mm; }
+.cover-tbl { width: 90mm; }
+.cover-tbl td, .cover-tbl th { font-size: 10pt; padding: 1.5mm 3mm; text-align: left; }
 .foot .hash { font-family: "Consolas", monospace; letter-spacing: -0.02em; }
 `;
