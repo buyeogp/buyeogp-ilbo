@@ -43,6 +43,7 @@ Puppeteer(Chromium)로 굽는다. Cloudflare Workers·Supabase Edge Functions(De
 | 지역 | **서울** ap-northeast-2a |
 | 고정 IP | **43.202.152.109** (`buyeogp-ip`) |
 | 방화벽 | 22 SSH · 80 HTTP · 443 HTTPS |
+| 접속 | Lightsail 브라우저 터미널, 또는 개발 PC 에서 `ssh buyeogp` (전용 열쇠 `~/.ssh/buyeogp`, `~/.ssh/config` 에 등록) |
 | AWS 계정 | 프로젝트 「Sky is the Limit」 (061534657492) · 관리 계정 buyeogp (939005125427) · 루트 메일 `buyeogp2026@gmail.com` |
 
 ### 새 AWS 계정은 서울을 못 쓴다 — 개설하며 막힌 곳
@@ -90,6 +91,7 @@ Supabase 와 왕복마다 0.13초가 붙어 일보 한 번 여는 데 2~3초가 
 Builder ID 복구 메일을 `buyeogp@gmail.com` 으로 · Builder ID MFA 를 발주처 휴대폰에 재등록 ·
 AWS 연락처 전화번호를 발주처 번호로 · Budgets 알림 수신자에서 개발자 개인 메일 빼기 ·
 Sentry 조직 `buyeogp` 은 같은 Google 계정이라 함께 넘어간다 (DSN 은 Client Keys 에서 확인).
+서버의 `~/.ssh/authorized_keys` 에서 개발 PC 열쇠(`buyeogp-dev-pc` 로 끝나는 줄) 지우기.
 
 ## 도메인
 
