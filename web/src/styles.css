@@ -33,6 +33,9 @@
   --f-num:  "Consolas", "D2Coding", ui-monospace, monospace;
 
   --row-h: 30px;
+  /* 돈방 묶음 바탕 · 지금 입력 중인 줄 — 어떤 칸 색 위에도 얹히게 반투명으로 */
+  --band:    rgba(34, 72, 92, .06);
+  --cur-row: rgba(14, 110, 110, .08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,6 +57,8 @@
     --warn-w:    #33251A;
     --crit:      #E0827A;
     --crit-w:    #331D1C;
+    --band:    rgba(255, 255, 255, .045);
+    --cur-row: rgba(79, 179, 172, .12);
   }
 }
 
@@ -285,6 +290,17 @@ td.cell.bad input:focus { box-shadow: inset 0 0 0 2px var(--crit); }
 /* 아직 답하지 않은 행. 글자를 붉게 하면 다 비었을 때 화면이 온통 붉어진다 —
    왼쪽에 가는 띠만 세운다. 훑으면서 빠진 줄을 찾기에는 이게 낫다. */
 tr.missing td.opening { box-shadow: inset 3px 0 0 var(--crit); }
+
+/* 돈방 구분 — 옆 돈방 줄에 잘못 치지 않게.
+   ① 묶음마다 바탕을 번갈아 ② 돈방이 바뀌는 곳에 굵은 선 ③ 커서가 있는 돈방 이름을 강조색으로 */
+table.grid tbody tr.band td { background-image: linear-gradient(var(--band), var(--band)); }
+table.grid tbody tr.pen-start td { border-top: 2px solid var(--line); }
+table.grid tbody tr.row-cur td { background-image: linear-gradient(var(--cur-row), var(--cur-row)); }
+table.grid tbody tr.row-cur td.rowhead:not(.pen) { color: var(--accent); }
+table.grid td.rowhead.pen.here {
+  background: var(--accent);
+  color: #fff;
+}
 
 tfoot td {
   position: sticky;

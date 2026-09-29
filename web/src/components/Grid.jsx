@@ -10,7 +10,7 @@
  * 빈칸을 허용하지 않는다. 「변동 없음」은 0 을 쳐서 말해야 한다 —
  * 빈칸은 「없었다」와 「아직 안 봤다」를 구별하지 못한다.
  */
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 /** 팀장이 입력하는 열. 이 순서가 곧 Tab 순서다. */
 const EDIT = ['inHead', 'outHead', 'internalOutHead', 'soldHead',
@@ -53,6 +53,7 @@ const digits = (s) => s.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
 
 export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange }) {
   const ref = useRef(null);
+  const [cur, setCur] = useState(-1);     // 커서가 있는 행 — 그 돈방을 밝힌다
 
   const focusCell = useCallback((r, c) => {
     const el = ref.current?.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
@@ -105,6 +106,18 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
     return out;
   }, [rows, basis]);
 
+  // 돈방 묶음 번호. 분만사는 한 돈방에 4줄씩 같은 모양이 되풀이돼 옆 돈방 줄에
+  // 잘못 치기 쉽다 — 묶음마다 바탕을 번갈아 칠하고 경계에 굵은 선을 긋는다
+  const groups = useMemo(() => {
+    const out = new Array(rows.length);
+    let g = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (i === 0 || rows[i].penId == null || rows[i].penId !== rows[i - 1].penId) g++;
+      out[i] = g;
+    }
+    return out;
+  }, [rows]);
+
   const totals = useMemo(() => {
     const t = { opening: 0, inHead: 0, outHead: 0, internalOutHead: 0,
                 soldHead: 0, dead: 0, closing: 0, reported: 0 };
@@ -144,7 +157,7 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
           value={v}
           placeholder={text ? '' : '·'}
           style={text ? { textAlign: 'left' } : undefined}
-          onFocus={(e) => e.target.select()}
+          onFocus={(e) => { e.target.select(); setCur(ri); }}
           onKeyDown={(e) => onKeyDown(e, ri, ci)}
           onChange={(e) => onChange(ri, key, text ? e.target.value : digits(e.target.value))}
         />
@@ -153,7 +166,8 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
   };
 
   return (
-    <div className="grid-wrap" ref={ref}>
+    <div className="grid-wrap" ref={ref}
+         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setCur(-1); }}>
       <table className="grid">
         {/* 숫자 칸은 폭을 못 박고, 남는 폭은 사유·비고가 가져간다.
             그러지 않으면 두수 칸이 종이 일보보다 훨씬 넓어져 한눈에 안 들어온다. */}
@@ -196,11 +210,17 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
             const closing = calcClosing(r);
             const variance = calcVariance(r);
             const missing = !readOnly && !rowComplete(r);
+            const g = groups[ri];
+            const here = cur >= 0 && groups[cur] === g;
+            const trCls = [missing && 'missing', g % 2 && 'band',
+              basis === 'pen_category' && ri > 0 && groups[ri - 1] !== g && 'pen-start',
+              here && 'pen-cur', ri === cur && 'row-cur'].filter(Boolean).join(' ');
             return (
               <tr key={`${r.penId ?? 'x'}-${r.categoryId ?? 'x'}`}
-                  className={missing ? 'missing' : undefined}>
+                  className={trCls || undefined}>
                 {(basis !== 'pen_category' || spans[ri] > 0) && (
-                  <td className="rowhead" rowSpan={basis === 'pen_category' ? spans[ri] : 1}>
+                  <td className={here ? 'rowhead pen here' : 'rowhead pen'}
+                      rowSpan={basis === 'pen_category' ? spans[ri] : 1}>
                     {r.penCode ?? r.categoryName ?? houseName}
                   </td>
                 )}
