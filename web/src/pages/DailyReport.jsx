@@ -451,6 +451,18 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         )}
         <span className="spacer" />
 
+        {/* 단추 순서는 상태가 바뀌어도 같다: PDF 는 늘 맨 왼쪽, 그 상태의 주된 동작
+            (일보 시작 · 제출 · 제출 취소 · 확정 · 확정 해제)은 늘 맨 오른쪽 */}
+        {/* 일보 PDF (§6.5). 확정 뒤는 공식 출력(출력 기록이 남는다), 그 전은 워터마크 미리보기.
+            새 탭에서 연다 — 브라우저 PDF 화면에서 바로 인쇄한다 */}
+        {data.report && data.rows.some((r) => r.filled) && (
+          <button className="btn" onClick={() => window.open(`/api/reports/${data.report.id}/pdf`, '_blank')}
+                  title={official ? '확정된 일보를 인쇄용 PDF 로 엽니다'
+                                  : '확정 전이라 「미리보기」 표시가 찍힙니다. 공식 출력은 확정 뒤에 합니다'}>
+            {official ? 'PDF 출력' : 'PDF 미리보기'}
+          </button>
+        )}
+
         {!status && data.canWrite && !narrow && (
           <button className="btn primary" onClick={start} disabled={busy === 'open'}>
             {busy === 'open' ? '여는 중…' : '일보 시작'}
@@ -490,16 +502,6 @@ export function DailyReport({ me, houseId, date, onChanged }) {
               </button>
             )}
           </>
-        )}
-
-        {/* 일보 PDF (§6.5). 확정 뒤는 공식 출력(출력 기록이 남는다), 그 전은 워터마크 미리보기.
-            새 탭에서 연다 — 브라우저 PDF 화면에서 바로 인쇄한다 */}
-        {data.report && data.rows.some((r) => r.filled) && (
-          <button className="btn" onClick={() => window.open(`/api/reports/${data.report.id}/pdf`, '_blank')}
-                  title={official ? '확정된 일보를 인쇄용 PDF 로 엽니다'
-                                  : '확정 전이라 「미리보기」 표시가 찍힙니다. 공식 출력은 확정 뒤에 합니다'}>
-            {official ? 'PDF 출력' : 'PDF 미리보기'}
-          </button>
         )}
 
         {/* 제출 취소 — 확정 전이면 담당 팀장이 스스로 거둔다 */}
