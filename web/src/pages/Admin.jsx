@@ -93,10 +93,12 @@ function ScopeGrid({ data, from, run, busy }) {
       && u.roles.some((r) => r === 'team_lead' || r === 'farm_manager')),
     [data.users, farmWideIds]);
 
+  // 칸 하나 = 그 사람이 그 돈사를 「앞으로도」 맡는지. 끝이 정해지지 않은 담당만 본다.
+  // 적용일을 미래로 넣은 것도 여기 들어온다 — 누르자마자 칸에 보여야 넣은 줄 안다
   const open = useMemo(() => {
     const m = new Map();
     for (const s of data.scopes) {
-      if (!s.active || s.validTo) continue;          // 닫히지 않은 현재 담당만
+      if (s.validTo) continue;                       // 끝난 · 끝날 예정인 담당은 칸에서 뺀다
       if (s.houseId == null) continue;               // 농장 전체는 칸으로 안 그린다
       m.set(`${s.userId}|${s.houseId}`, s);
     }
@@ -107,40 +109,52 @@ function ScopeGrid({ data, from, run, busy }) {
     () => data.users.filter((u) => u.status === 'active' && farmWideIds.has(u.id)),
     [data.users, farmWideIds]);
 
-  // 확인은 화면 안에서 받는다. 브라우저 기본 대화상자는 말이 딱딱하고 스타일이
-  // 없어 이 화면의 다른 글과 따로 논다 (§6.4 P10 — 쉬운 한국어).
-  const [ask, setAsk] = useState(null);
+  // 넣기는 누르면 바로 된다 — 잘못 넣었으면 한 번 더 눌러 빼면 된다.
+  // 빼기만 그 칸 바로 아래에서 한 번 묻는다. 빼면 그 팀장 화면에서 돈사가 사라지기 때문이다.
+  const [ask, setAsk] = useState(null);       // 빼기를 묻고 있는 칸
+  const [pending, setPending] = useState(null);
+  const [flash, setFlash] = useState(null);   // 방금 바뀐 칸 — 잠깐 밝혀 둔다
 
-  const toggle = (user, house) => setAsk({ user, house, has: open.has(`${user.id}|${house.id}`) });
+  useEffect(() => {
+    if (!ask) return;
+    // Esc 나 다른 곳을 누르면 닫는다 — 아무것도 바뀌지 않는다
+    const esc = (e) => { if (e.key === 'Escape') setAsk(null); };
+    const away = (e) => { if (!e.target.closest?.('td.pick.asking')) setAsk(null); };
+    window.addEventListener('keydown', esc);
+    window.addEventListener('mousedown', away);
+    return () => {
+      window.removeEventListener('keydown', esc);
+      window.removeEventListener('mousedown', away);
+    };
+  }, [ask]);
 
-  const doIt = () => {
-    const { user, house, has } = ask;
+  const change = async (user, house, has) => {
+    const key = `${user.id}|${house.id}`;
     setAsk(null);
-    run(() => (has ? api.scopeEnd(user.id, house.id, from)
-                   : api.scopeAdd(user.id, house.id, from)));
+    setPending(key);
+    const r = await run(() => (has ? api.scopeEnd(user.id, house.id, from)
+                                   : api.scopeAdd(user.id, house.id, from)));
+    setPending(null);
+    if (r) { setFlash(key); setTimeout(() => setFlash((f) => (f === key ? null : f)), 1800); }
   };
+
+  const press = (user, house) => {
+    const key = `${user.id}|${house.id}`;
+    if (open.has(key)) setAsk(ask === key ? null : key);
+    else change(user, house, false);
+  };
+
+  const later = from > today();
+  const md = (d) => d.slice(5).replace('-', '/');
 
   return (
     <>
-      {ask ? (
-        <div className="confirm">
-          <span className="q">
-            <b>{ask.user.name}</b> 님을 <b>{ask.house.name}</b> 담당에서
-            {ask.has ? ' 빼겠습니까?' : ' 넣겠습니까?'}
-            <i>적용일 {from}</i>
-          </span>
-          <span className="spacer" />
-          <button className="btn" onClick={() => setAsk(null)}>취소</button>
-          <button className="btn primary" disabled={busy} onClick={doIt}>
-            {ask.has ? '뺍니다' : '넣습니다'}
-          </button>
-        </div>
-      ) : (
-        <p className="hint" style={{ marginBottom: 10 }}>
-          칸을 누르면 담당이 바뀝니다. <b>적용일을 미래로 두면 그 날부터</b> 바뀝니다 —
-          미리 넣어 두면 그날 기억하지 않아도 됩니다.
-        </p>
-      )}
+      <p className="hint" style={{ marginBottom: 10 }}>
+        빈 칸을 누르면 <b>바로 담당이 됩니다.</b> ● 칸을 누르면 그 자리에서 뺄지 묻습니다.
+        {later
+          ? <> 적용일이 <b>{from}</b> 이라 그날부터 바뀝니다 — 칸에 「{md(from)}부터」로 보입니다.</>
+          : <> 적용일을 미래로 두면 그 날부터 바뀝니다 — 미리 넣어 두면 그날 기억하지 않아도 됩니다.</>}
+      </p>
 
       <div className="grid-wrap fit">
         <table className="grid">
@@ -157,23 +171,45 @@ function ScopeGrid({ data, from, run, busy }) {
             </tr>
           </thead>
           <tbody>
-            {data.owners.map((o) => {
+            {data.owners.map((o, oi) => {
+              // 아래쪽 세 줄은 확인 창을 위로 띄운다 — 표 밖으로 나가면 잘린다
+              const up = oi >= data.owners.length - 3;
               const house = data.houses.find((h) => h.id === o.houseId);
               return (
                 <tr key={o.houseId} className={o.leadCount === 0 ? 'missing' : undefined}>
                   <td className="rowhead">{o.name}</td>
                   {people.map((p) => {
-                    const on = open.has(`${p.id}|${o.houseId}`);
+                    const key = `${p.id}|${o.houseId}`;
+                    const s = open.get(key);
+                    const soon = s && !s.active;              // 적용일이 아직 안 온 담당
+                    const cls = ['chip', s && 'on', soon && 'soon',
+                      pending === key && 'pending', flash === key && 'flash'].filter(Boolean).join(' ');
                     return (
-                      <td key={p.id} className="pick">
-                        <button type="button"
-                                className={on ? 'chip on' : 'chip'}
+                      <td key={p.id} className={ask === key ? 'pick asking' : 'pick'}>
+                        <button type="button" className={cls}
                                 disabled={busy}
-                                aria-pressed={on}
-                                title={`${p.name} · ${o.name}`}
-                                onClick={() => toggle(p, house)}>
-                          {on ? '●' : ''}
+                                aria-pressed={!!s}
+                                title={s ? `${p.name} · ${o.name} — 누르면 뺄지 묻습니다`
+                                         : `${p.name} · ${o.name} — 누르면 담당이 됩니다`}
+                                onClick={() => press(p, house)}>
+                          {pending === key ? '…' : s ? (soon ? '○' : '●') : ''}
+                          {soon && <small>{md(s.validFrom)}부터</small>}
                         </button>
+                        {ask === key && (
+                          <div className={up ? 'cell-ask up' : 'cell-ask'} role="dialog"
+                               aria-label={`${p.name} 님을 ${o.name} 담당에서 빼기`}>
+                            <p><b>{p.name}</b> 님을 <b>{o.name}</b> 담당에서 뺄까요?</p>
+                            <p className="when">
+                              {later ? `${from} 부터 빠집니다` : '오늘부터 이 돈사 일보가 안 보입니다'}
+                            </p>
+                            <div className="acts">
+                              <button type="button" className="btn small" autoFocus
+                                      onClick={() => setAsk(null)}>그대로 둡니다</button>
+                              <button type="button" className="btn small danger"
+                                      onClick={() => change(p, house, true)}>뺍니다</button>
+                            </div>
+                          </div>
+                        )}
                       </td>
                     );
                   })}
