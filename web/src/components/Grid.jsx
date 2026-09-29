@@ -52,7 +52,7 @@ export function rowFaults(r) {
 const digits = (s) => s.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
 
 export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange,
-                       onDeaths, photoDue }) {
+                       onRowLeave, onDeaths, photoDue }) {
   const ref = useRef(null);
   const [cur, setCur] = useState(-1);     // 커서가 있는 행 — 그 돈방을 밝힌다
 
@@ -158,7 +158,11 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
           value={v}
           placeholder={text ? '' : '·'}
           style={text ? { textAlign: 'left' } : undefined}
-          onFocus={(e) => { e.target.select(); setCur(ri); }}
+          onFocus={(e) => {
+            e.target.select();
+            if (cur >= 0 && cur !== ri) onRowLeave?.(cur);   // 다른 줄로 옮겼다
+            setCur(ri);
+          }}
           onKeyDown={(e) => onKeyDown(e, ri, ci)}
           onChange={(e) => onChange(ri, key, text ? e.target.value : digits(e.target.value))}
         />
@@ -168,7 +172,11 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
 
   return (
     <div className="grid-wrap" ref={ref}
-         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setCur(-1); }}>
+         onBlur={(e) => {
+           if (e.currentTarget.contains(e.relatedTarget)) return;
+           if (cur >= 0) onRowLeave?.(cur);                   // 표 밖으로 나갔다
+           setCur(-1);
+         }}>
       <table className="grid">
         {/* 숫자 칸은 폭을 못 박고, 남는 폭은 사유·비고가 가져간다.
             그러지 않으면 두수 칸이 종이 일보보다 훨씬 넓어져 한눈에 안 들어온다. */}

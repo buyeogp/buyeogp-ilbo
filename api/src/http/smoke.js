@@ -93,9 +93,18 @@ await admin.query(`insert into sec.user_scope (user_id,farm_id,house_id) values 
 await admin.query(`insert into sec.user_scope (user_id,farm_id,house_id) values ($1,$2,null)`,
   [hq, farm]);
 
-const TEST_DATE = '2031-03-01';
-await admin.query(`delete from app.daily_report where report_date >= date '2031-01-01'`);
+// 운영 DB 에는 사람이 시험 중인 미확정 일보가 있을 수 있다. 그러면 V5(앞 일보가
+// 확정돼야 다음 날을 연다)가 시험 날짜를 막는다. 시험 날짜 바로 앞에 확정된 **기준 일보**를
+// 깔아 둔다 — 줄이 없으므로 전일두수(V2)는 그대로 과거 확정분에서 이어진다.
+for (const h of [jadon, bunman]) {
+  await admin.query(
+    `insert into app.daily_report (farm_id, house_id, report_date, status, author_id,
+                                   submitted_at, confirmed_by, confirmed_at, is_baseline)
+     values ($1, $2, date '2031-02-28', 'confirmed', $3, now(), $4, now(), true)`,
+    [farm, h, lead, hq]);
+}
 
+const TEST_DATE = '2031-03-01';
 try {
   // ── 인증 ──────────────────────────────────────────────────────────
   console.log('━━ 인증 ━━');
@@ -233,6 +242,14 @@ try {
     const back = await call('PUT', `/api/reports/${reportId}/rows`, { rows });
     ck('폐사가 있어도 제출 가능 (원장과 일보가 맞다)', back.body?.canSubmit === true,
       JSON.stringify(back.body?.violations)?.slice(0, 120));
+  }
+
+  // 「빈칸 0으로 채우기」 기록 (025) — 본사 확정 화면에 보인다
+  {
+    await call('PUT', `/api/reports/${reportId}/rows`, { rows: [rows[1]], bulkZero: 3 });
+    const g = await call('GET', `/api/reports/${jadon}/${TEST_DATE}`);
+    ck('일괄 0 채움 줄 수가 남는다', g.body?.report?.bulkZeroRows === 3 && !!g.body?.report?.bulkZeroAt,
+      JSON.stringify(g.body?.report)?.slice(0, 120));
   }
 
   // 규칙 위반이 실제로 막히는지

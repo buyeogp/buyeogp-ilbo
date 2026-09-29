@@ -46,8 +46,8 @@ export const api = {
   status: (date) => call('GET', `/reports/status?date=${date}`),
   report: (houseId, date) => call('GET', `/reports/${houseId}/${date}`),
   open: (houseId, date) => call('POST', `/reports/${houseId}/${date}/open`),
-  saveRows: (reportId, rows, noteText) =>
-    call('PUT', `/reports/${reportId}/rows`, { rows, noteText }),
+  saveRows: (reportId, rows, noteText, bulkZero) =>
+    call('PUT', `/reports/${reportId}/rows`, { rows, noteText, bulkZero }),
   submit: (reportId) => call('POST', `/reports/${reportId}/submit`),
   confirm: (reportId) => call('POST', `/reports/${reportId}/confirm`),
   unconfirm: (reportId) => call('POST', `/reports/${reportId}/unconfirm`),

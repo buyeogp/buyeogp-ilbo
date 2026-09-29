@@ -119,7 +119,41 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     setDirty(true);
   }, []);
 
+  /**
+   * (A) 숫자를 하나라도 넣은 줄을 떠나면 그 줄의 나머지 빈칸을 0 으로.
+   * 그 줄은 사람이 **본** 줄이다 — 「안 봤다」와 헷갈릴 일이 없다.
+   * 손대지 않은 줄은 그대로 비워 둔다. 그게 빨간 세로선이 잡으려는 것이다.
+   */
+  const rowLeave = useCallback((ri) => {
+    const r = rowsRef.current[ri];
+    if (!r || rowComplete(r)) return;
+    if (MOVES.some((k) => r[k] !== '' && r[k] != null)) noChange(ri);
+  }, [noChange]);
+
+  /**
+   * (B) 「빈칸 0으로 채우기」 — 남은 빈칸을 한꺼번에. 줄 수를 서버에 남긴다(025).
+   * 본사가 확정할 때 「N줄을 한꺼번에 채움」을 보고 정말 다 봤는지 물을 수 있게.
+   */
+  const bulkPending = useRef(0);
+  const [askBulk, setAskBulk] = useState(false);
+  const fillAll = useCallback(() => {
+    // 어느 줄인지는 지금 화면 값으로 먼저 센다 — setRows 의 갱신 함수는 나중에 돈다
+    const idx = rowsRef.current.flatMap((r, i) => (rowComplete(r) ? [] : [i]));
+    setRows((old) => old.map((r, i) => {
+      if (!idx.includes(i)) return r;
+      const next = { ...r };
+      for (const k of MOVES) if (next[k] === '' || next[k] == null) next[k] = '0';
+      return next;
+    }));
+    for (const i of idx) pending.current.add(i);
+    bulkPending.current += idx.length;
+    setAskBulk(false);
+    setDirty(true);
+  }, []);
+
   const missing = useMemo(() => rows.filter((r) => !rowComplete(r)).length, [rows]);
+  const blankCells = useMemo(() => rows.reduce((a, r) =>
+    a + MOVES.filter((k) => r[k] === '' || r[k] == null).length, 0), [rows]);
   const faulty = useMemo(
     () => rows.filter((r) => Object.keys(rowFaults(r)).length > 0).length, [rows]);
 
@@ -165,7 +199,13 @@ export function DailyReport({ me, houseId, date, onChanged }) {
 
     setSaveState({ kind: 'saving' });
     try {
-      const res = await api.saveRows(data.report.id, payload);
+      const bulk = bulkPending.current;
+      const res = await api.saveRows(data.report.id, payload, undefined, bulk || undefined);
+      bulkPending.current -= bulk;
+      if (bulk) {
+        setData((d) => (d?.report ? { ...d, report: { ...d.report,
+          bulkZeroRows: (d.report.bulkZeroRows ?? 0) + bulk, bulkZeroAt: new Date().toISOString() } } : d));
+      }
       for (const ri of sent) pending.current.delete(ri);
 
       const byKey = new Map(res.rows.map((r) => [`${r.penId ?? ''}|${r.categoryId ?? ''}`, r]));
@@ -335,6 +375,19 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         );
       })()}
 
+      {data.report?.bulkZeroRows > 0 && (
+        <div className="notes">
+          <div className={'note ' + (status === 'submitted' ? 'warn' : 'info')}>
+            <span className="where">일괄 0</span>
+            <span>
+              빈칸 <b>{data.report.bulkZeroRows}줄</b>을 「빈칸 0으로 채우기」로 한꺼번에 채웠습니다
+              {data.report.bulkZeroAt ? ` (${new Date(data.report.bulkZeroAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})` : ''}.
+              {status === 'submitted' ? ' 확정 전에 그 돈방들이 정말 변동 없었는지 확인해 주십시오.' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       <Notes violations={violations} editable={editable}
              missing={editable ? missing : 0}
              faulty={editable ? faulty : 0} />
@@ -343,6 +396,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         ? <Cards rows={rows} houseName={data.house.name} onDeaths={openDeaths} photoDue={photoDue} />
         : <Grid rows={rows} basis={data.house.countBasis} houseName={data.house.name}
                 readOnly={!editable} onChange={change} onRowNoChange={noChange}
+                onRowLeave={editable ? rowLeave : undefined}
                 onDeaths={openDeaths} photoDue={photoDue} />}
 
       {logOpen && (
@@ -376,6 +430,19 @@ export function DailyReport({ me, houseId, date, onChanged }) {
             {busy === 'open' ? '여는 중…' : '일보 시작'}
           </button>
         )}
+
+        {editable && missing > 0 && (askBulk ? (
+          <span className="inline-confirm">
+            빈칸 <b>{blankCells}칸 ({missing}줄)</b>을 0 으로 채웁니다. 한꺼번에 채웠다는 기록이 본사 확정 화면에 남습니다.
+            <button className="btn small" onClick={() => setAskBulk(false)}>그대로 둡니다</button>
+            <button className="btn small primary" onClick={fillAll}>채웁니다</button>
+          </span>
+        ) : (
+          <button className="btn" onClick={() => setAskBulk(true)}
+                  title="남은 빈칸을 모두 0 으로 채웁니다 — 변동이 정말 없었던 줄만 남았을 때 씁니다">
+            빈칸 0으로 채우기 ({missing}줄)
+          </button>
+        ))}
 
         {editable && (
           <>

@@ -30,6 +30,7 @@ BEGIN;
 \ir 022_timezone.sql
 \ir 023_v5_message.sql
 \ir 024_deaths_before_row.sql
+\ir 025_bulk_zero.sql
 
 COMMIT;
 

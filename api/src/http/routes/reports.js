@@ -79,6 +79,7 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
     const report = await q.one(
       `SELECT dr.id, dr.status::text, dr.author_id, dr.confirmed_by, dr.note_text,
               dr.submitted_at, dr.confirmed_at, dr.locked_at, dr.printed_at,
+              dr.bulk_zero_rows, dr.bulk_zero_at,
               a.name AS author_name, c.name AS confirmer_name
          FROM app.daily_report dr
          LEFT JOIN sec.app_user a ON a.id = dr.author_id
@@ -177,6 +178,7 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
       noteText: out.report.note_text,
       submittedAt: out.report.submitted_at, confirmedAt: out.report.confirmed_at,
       lockedAt: out.report.locked_at, printedAt: out.report.printed_at,
+      bulkZeroRows: out.report.bulk_zero_rows, bulkZeroAt: out.report.bulk_zero_at,
     },
     rows: out.rows,
     violations: out.violations.map((v) => ({
@@ -258,6 +260,14 @@ reportsRouter.put('/:reportId/rows', wrap(async (req, res) => {
          r.reportedClosingHead === '' || r.reportedClosingHead == null
            ? null : Number(r.reportedClosingHead),
          r.varianceReason || null, r.avgWeightKg || null, r.note || null]);
+    }
+
+    // 「빈칸 0으로 채우기」 — 썼다는 사실을 남긴다 (025). 본사 확정 화면에 보인다
+    const bulk = Number(req.body.bulkZero);
+    if (Number.isInteger(bulk) && bulk > 0 && bulk <= 1000) {
+      await q(`UPDATE app.daily_report
+                  SET bulk_zero_rows = bulk_zero_rows + $2, bulk_zero_at = now()
+                WHERE id = $1`, [rep.id, bulk]);
     }
 
     if (typeof req.body.noteText === 'string') {
