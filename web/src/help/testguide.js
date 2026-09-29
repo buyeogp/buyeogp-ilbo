@@ -77,6 +77,47 @@ export const TG_SECTIONS = [
     ],
   },
 
+  /* ── 아직 없는 기능 ─────────────────────────────────────────────── */
+  // 없는 것을 먼저 말한다. 모르고 찾다 보면 「고장」으로 알고, 폐사 두수 차이는 오류로 신고된다
+  {
+    id: 'notyet',
+    views: ALL,
+    title: t('아직 만들어지지 않은 기능', 'Not built yet'),
+    blocks: [
+      { p: t('아래 기능은 *아직 없습니다.* 찾으셔도 화면에 없는 것이 정상입니다. 테스트 결과를 보고 순서대로 만듭니다.',
+             'The features below *do not exist yet.* It is normal not to find them. We will build them in order after the test.') },
+      { h3: t('이번 테스트에 영향이 있는 것', 'These affect the test') },
+      { table: {
+        head: [t('기능', 'Feature'), t('테스트 중에는', 'During the test')],
+        rows: [
+          [t('*폐사·도태 등록* (사진 첨부)', '*Recording deaths and culls* (with photo)'),
+           t('폐사·도태 칸이 *늘 0* 입니다. 폐사가 있던 날은 *당일두수가 엑셀보다 그만큼 많게* 나옵니다 — *오류가 아닙니다.* 그 줄 *비고*에 「폐사 2」처럼 적어 주십시오.',
+             'The deaths/culls column is *always 0*. On days with deaths, *the closing count is higher than Excel by that many* — *not an error.* Write e.g. "폐사 2" in that row’s *note*.'), 'you'],
+          [t('*일보 PDF 출력·인쇄* 단추', '*Print / PDF download* of the report'),
+           t('없습니다. 종이 일보는 *지금처럼 엑셀에서* 출력하십시오. (서버에서 PDF 를 만드는 부분은 준비돼 있고 단추만 남았습니다)',
+             'Not yet. Print the paper report *from Excel as now*. (The server side that makes the PDF is ready; only the button is left.)'), 'you'],
+          [t('*제출·확정한 일보 고치기* (정정전표)', '*Correcting a submitted/confirmed report* (correction voucher)'),
+           t('없습니다. 제출 뒤 틀린 것을 찾으면 *알려 주십시오.* 테스트 기간에는 개발자가 정리합니다.',
+             'Not yet. If you find a mistake after submitting, *tell us.* During the test the developer fixes it.'), 'you'],
+          [t('*돈사 간 이동 맞추기* — 한 돈사의 전출과 받은 돈사의 전입이 같은지 자동 확인',
+             '*Matching moves between houses* — checking that one house’s "out" equals the receiving house’s "in"'),
+           t('자동 확인은 아직 없습니다. 두 돈사 숫자가 안 맞으면 알려 주십시오.',
+             'Not checked automatically yet. Tell us if two houses do not match.')],
+        ],
+      } },
+      { h3: t('그다음에 만들 것 (이번 테스트와는 관계없음)', 'Coming later (not part of this test)') },
+      { ul: [
+        t('약품 사용·*휴약기간*, 백신 기록', 'Medicine use and *withdrawal periods*, vaccination records'),
+        t('분만사 하위 표 — 분만·이유·도폐사 현황', 'Farrowing-house sub-tables — farrowing, weaning, deaths'),
+        t('본사 *실시간 알림*(이상 있는 일보가 바로 뜨는 목록), 미제출 알림(웹 알림·카카오 알림톡)',
+          'Head office *live alerts* (a list of reports with problems), reminders for unsubmitted reports (web push, KakaoTalk)'),
+        t('*비밀번호를 본인이 바꾸기*, 본사 계정 2단계 인증 — 지금은 관리자가 재발급합니다',
+          '*Changing your own password*, two-step login for head office — for now the administrator issues new ones'),
+        t('용어 카드의 *네팔어* 칸 — 팀장께 부탁드려 채웁니다', 'The *Nepali* column of the word card — to be filled with a team lead’s help'),
+      ] },
+    ],
+  },
+
   /* ── 2. 하루 흐름 ──────────────────────────────────────────────── */
   {
     id: 'flow',
