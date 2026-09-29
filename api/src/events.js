@@ -79,13 +79,33 @@ export async function reportHead(q, reportId) {
       WHERE dr.id = $1`, [reportId]);
 }
 
-/** 자동 저장은 1~2초마다 온다. 같은 일보는 15초에 한 번만 알린다 */
-const lastSaved = new Map();
+/**
+ * 자동 저장은 1~2초마다 온다. 같은 일보는 15초에 한 번만 알린다.
+ * 그 사이에 온 저장은 **버리지 않고** 15초가 끝날 때 한 번 보낸다 — 버리면 팀장이 입력을
+ * 멈춘 뒤의 마지막 상태가 본사 화면에 영영 안 온다.
+ */
+const WINDOW_MS = 15_000;
+const saved = new Map();     // reportId → { last, timer, ev }
 export function publishSaved(head, user) {
-  const now = Date.now();
-  if (now - (lastSaved.get(String(head.reportId)) ?? 0) < 15_000) return;
-  lastSaved.set(String(head.reportId), now);
-  publish({ kind: 'saved', ...head, by: user.name, byId: user.userId });
+  const key = String(head.reportId);
+  const ev = { kind: 'saved', ...head, by: user.name, byId: user.userId };
+  const s = saved.get(key) ?? { last: 0, timer: null, ev: null };
+  saved.set(key, s);
+  const wait = s.last + WINDOW_MS - Date.now();
+  if (wait <= 0 && !s.timer) {
+    s.last = Date.now();
+    publish(ev);
+    return;
+  }
+  s.ev = ev;                                   // 가장 최근 것으로 바꿔 둔다
+  if (s.timer) return;
+  s.timer = setTimeout(() => {
+    s.timer = null;
+    s.last = Date.now();
+    publish(s.ev);
+    s.ev = null;
+  }, Math.max(wait, 0));
+  s.timer.unref?.();
 }
 
 export const liveCount = () => clients.size;

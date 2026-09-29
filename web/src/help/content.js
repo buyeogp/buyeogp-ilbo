@@ -516,6 +516,8 @@ export const SECTIONS = [
       { h3: t('저절로 바뀌는 곳', 'What updates by itself') },
       { ul: [
         t('*제출 현황* — 상태·입력 줄 수·폐사·도태 칸', '*The status board* — status, rows entered, deaths and culls'),
+        t('제출·확정 같은 일은 *1~2초* 안에 바뀝니다. 팀장이 *숫자를 치는 중*인 일보는 본사 화면에 *최대 15초* 간격으로 따라오고, 입력을 멈추면 마지막 숫자까지 반영됩니다.',
+          'Submits and confirmations show within *1–2 seconds*. While a team lead is *typing*, head office sees the numbers follow at most *every 15 seconds*; once typing stops, the last numbers arrive too.'),
         t('위쪽 *돈사 이름 옆 점* (제출·확정 표시)', 'The *dots next to house names* at the top (submitted / confirmed)'),
         t('*보고 있는 일보* — 입력 중이면 *치던 칸은 그대로* 두고 폐사·도태·당일두수·상태만 바꿉니다. 입력한 숫자가 덮이는 일은 없습니다.',
           '*The report you are looking at* — while you are typing, *your cells are left alone*; only deaths, culls, closing counts and status change. What you typed is never overwritten.'),
