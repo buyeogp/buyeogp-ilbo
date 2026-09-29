@@ -16,6 +16,7 @@ import {
   Grid, MOVES, calcClosing, calcVariance, num, rowComplete, rowFaults, rowTouched,
 } from '../components/Grid.jsx';
 import { DeathPanel } from '../components/DeathPanel.jsx';
+import { DeathLog } from '../components/DeathLog.jsx';
 
 const CONFIRMERS = ['hq_staff', 'hq_manager'];
 const UNCONFIRMERS = ['farm_manager', 'hq_staff', 'hq_manager'];
@@ -66,6 +67,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const [saveState, setSaveState] = useState({ kind: 'idle' });  // 자동저장 표시
   const [deaths, setDeaths] = useState(null);   // { items, reasons, photoStorage }
   const [deathRow, setDeathRow] = useState(null);  // 등록 창을 연 줄 번호
+  const [logOpen, setLogOpen] = useState(false);   // 이 돈사 오늘 폐사·도태 일지
 
   // 아직 서버에 안 보낸 줄. 화면을 다시 그려도 유지되어야 하므로 ref 에 둔다.
   const pending = useRef(new Set());
@@ -316,6 +318,20 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         </div>
       )}
 
+      {deaths?.items?.length > 0 && (() => {
+        const it = deaths.items;
+        const n = (k) => it.filter((x) => x.kind === k).reduce((a, x) => a + x.headCount, 0);
+        const due = it.filter((x) => x.kind === 'mortality' && !x.hasPhoto).length;
+        return (
+          <div className="death-bar">
+            <span>오늘 폐사 <b>{n('mortality')}</b>두 · 도태 <b>{n('culling')}</b>두
+              <span className="dim"> ({it.length}건)</span></span>
+            {due > 0 && <span className="dl-due">사진 보완 필요 <b>{due}</b>건</span>}
+            <button type="button" className="btn small" onClick={() => setLogOpen(true)}>일지 · 사진 보기</button>
+          </div>
+        );
+      })()}
+
       <Notes violations={violations} editable={editable}
              missing={editable ? missing : 0}
              faulty={editable ? faulty : 0} />
@@ -325,6 +341,11 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         : <Grid rows={rows} basis={data.house.countBasis} houseName={data.house.name}
                 readOnly={!editable} onChange={change} onRowNoChange={noChange}
                 onDeaths={openDeaths} photoDue={photoDue} />}
+
+      {logOpen && (
+        <DeathLog date={date} houseId={houseId} title={`${data.house.name} 폐사·도태`}
+                  onClose={() => setLogOpen(false)} />
+      )}
 
       {deathRow != null && deaths && rows[deathRow] && (
         <DeathPanel reportId={data.report.id} row={rows[deathRow]}

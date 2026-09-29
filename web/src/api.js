@@ -59,6 +59,8 @@ export const api = {
   photoUp: (reportId, blob) => call('POST', `/reports/${reportId}/deaths/photo`, blob),
   photoAttach: (reportId, id, photoKey) =>
     call('POST', `/reports/${reportId}/deaths/mortality/${id}/photo`, { photoKey }),
+  deathLog: (date, houseId) =>
+    call('GET', `/deaths?date=${date}${houseId ? `&houseId=${houseId}` : ''}`),
   photoSrc: (reportId, id) => `/api/reports/${reportId}/deaths/mortality/${id}/photo`,
 
   // 계정·담당 관리 (§6.1 / §6.3)

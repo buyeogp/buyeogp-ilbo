@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api.js';
+import { PhotoView } from './DeathLog.jsx';
 
 const KIND = { mortality: '폐사', culling: '도태' };
 
@@ -48,6 +49,7 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [askDel, setAskDel] = useState(null);
+  const [view, setView] = useState(null);           // 크게 보는 사진
   const fileRef = useRef(null);
   const boxRef = useRef(null);
 
@@ -59,11 +61,11 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
   const picked = reasons.find((r) => r.code === reason);
 
   useEffect(() => {
-    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    const esc = (e) => { if (e.key === 'Escape' && !view) onClose(); };
     window.addEventListener('keydown', esc);
-    boxRef.current?.focus();
     return () => window.removeEventListener('keydown', esc);
-  }, [onClose]);
+  }, [onClose, view]);
+  useEffect(() => { boxRef.current?.focus(); }, []);
 
   // 사유는 종류마다 다르다 (압사는 폐사만, 도태는 도태만)
   useEffect(() => {
@@ -159,9 +161,11 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
                 <span>{x.reasonName}{x.reasonNote ? ` — ${x.reasonNote}` : ''}</span>
                 {x.earTag && <span className="dim">이각 {x.earTag}</span>}
                 {x.kind === 'mortality' && (x.hasPhoto ? (
-                  <a className="dp-photo" href={api.photoSrc(reportId, x.id)} target="_blank" rel="noreferrer">
+                  <button type="button" className="thumb" title="크게 보기"
+                          onClick={() => setView({ src: api.photoSrc(reportId, x.id),
+                            caption: `${title} · 폐사 ${x.headCount}두 · ${x.reasonName}` })}>
                     <img src={api.photoSrc(reportId, x.id)} alt={`${KIND[x.kind]} 사진`} />
-                  </a>
+                  </button>
                 ) : (
                   <span className="dp-due">
                     사진 없음 · {hhmm(x.photoDueAt)}까지 보완
@@ -277,6 +281,7 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
           </>
         )}
       </div>
+      {view && <PhotoView src={view.src} caption={view.caption} onClose={() => setView(null)} />}
     </div>
   );
 }

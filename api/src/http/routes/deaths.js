@@ -264,3 +264,62 @@ deathsRouter.get('/mortality/:id/photo', wrap(async (req, res) => {
   const buf = Buffer.from(await p.body.transformToByteArray());
   res.send(buf);
 }));
+
+/**
+ * 폐사·도태 일지 — /api/deaths?date=YYYY-MM-DD[&houseId=]  (설계문서 §10 「폐사일지 / 도태일지」)
+ *
+ * 한 날짜의 폐사·도태를 돈사를 넘어 한 장으로 본다. 본사는 전 돈사, 팀장은 담당 돈사.
+ * 사진이 빠진 건(V10 보완 대기)을 여기서 찾는다 — 줄마다 칸을 눌러 볼 수는 없다.
+ */
+export const deathLogRouter = Router();
+deathLogRouter.use(requireAuth);
+
+deathLogRouter.get('/', wrap(async (req, res) => {
+  const date = String(req.query.date ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new HttpError(400, 'bad_request', '날짜 형식이 올바르지 않습니다.');
+  }
+  const houseId = req.query.houseId ? String(req.query.houseId) : null;
+  if (houseId && !canAccessHouse(req.user, houseId)) {
+    throw new HttpError(403, 'forbidden', '볼 수 있는 돈사가 아닙니다.');
+  }
+
+  const rows = await tx(req.user.userId, (q) => q.all(`
+    WITH x AS (
+      SELECT 'mortality' AS kind, m.id, m.house_id, m.pen_id, m.category_id, m.head_count,
+             m.reason_code_id, m.reason_note, m.ear_tag, m.note,
+             m.photo_url IS NOT NULL AS has_photo, m.photo_waiver, m.photo_due_at,
+             m.created_by, m.created_at, m.event_date
+        FROM app.mortality m WHERE m.event_date = $1::date
+      UNION ALL
+      SELECT 'culling', c.id, c.house_id, c.pen_id, c.category_id, c.head_count,
+             c.reason_code_id, c.reason_note, c.ear_tag, c.note,
+             NULL, NULL, NULL, c.created_by, c.created_at, c.event_date
+        FROM app.culling c WHERE c.event_date = $1::date
+    )
+    SELECT x.*, h.name AS house_name, h.seq AS house_seq, p.code AS pen_code, p.seq AS pen_seq,
+           pc.name AS category_name, rc.code, rc.name AS reason_name,
+           u.name AS created_by_name, dr.id AS report_id, dr.status::text AS report_status
+      FROM x
+      JOIN app.house h ON h.id = x.house_id
+      LEFT JOIN app.pen p ON p.id = x.pen_id
+      LEFT JOIN app.pig_category pc ON pc.id = x.category_id
+      JOIN app.reason_code rc ON rc.id = x.reason_code_id
+      LEFT JOIN sec.app_user u ON u.id = x.created_by
+      LEFT JOIN app.daily_report dr ON dr.house_id = x.house_id AND dr.report_date = x.event_date
+     WHERE ($2::bigint IS NULL OR x.house_id = $2::bigint)
+     ORDER BY h.seq, p.seq NULLS FIRST, x.created_at`, [date, houseId]));
+
+  res.json({
+    date,
+    items: rows.filter((r) => canAccessHouse(req.user, r.house_id)).map((r) => ({
+      kind: r.kind, id: r.id, reportId: r.report_id, reportStatus: r.report_status,
+      houseId: r.house_id, houseName: r.house_name,
+      penId: r.pen_id, penCode: r.pen_code, categoryId: r.category_id, categoryName: r.category_name,
+      headCount: r.head_count, reasonCode: r.code, reasonName: r.reason_name, reasonNote: r.reason_note,
+      earTag: r.ear_tag, note: r.note,
+      hasPhoto: r.has_photo === true, photoWaiver: r.photo_waiver, photoDueAt: r.photo_due_at,
+      createdBy: r.created_by_name, createdAt: r.created_at,
+    })),
+  });
+}));

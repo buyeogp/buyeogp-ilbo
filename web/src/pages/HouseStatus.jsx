@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, formatDate, shiftDate, STATUS_LABEL } from '../api.js';
+import { DeathLog } from '../components/DeathLog.jsx';
 
 const TONE = {
   confirmed: 'confirmed', locked: 'locked',
@@ -17,12 +18,15 @@ export function HouseStatus({ date }) {
   const nav = useNavigate();
   const [houses, setHouses] = useState(null);
   const [err, setErr] = useState(null);
+  const [deaths, setDeaths] = useState([]);     // 그 날 폐사·도태 — 돈사별로 센다
+  const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
     let live = true;
     api.status(date)
       .then((s) => { if (live) setHouses(s.houses); })
       .catch((e) => { if (live) setErr(e instanceof ApiError ? e.message : '불러오지 못했습니다.'); });
+    api.deathLog(date).then((r) => { if (live) setDeaths(r.items); }).catch(() => {});
     return () => { live = false; };
   }, [date]);
 
@@ -31,6 +35,11 @@ export function HouseStatus({ date }) {
 
   const done = houses.filter((h) => h.status === 'confirmed' || h.status === 'locked').length;
   const late = houses.filter((h) => h.status === '미시작').length;
+  const per = (id, k) => deaths.filter((x) => String(x.houseId) === String(id) && x.kind === k)
+    .reduce((a, x) => a + x.headCount, 0);
+  const dueOf = (id) => deaths.filter((x) => String(x.houseId) === String(id)
+    && x.kind === 'mortality' && !x.hasPhoto).length;
+  const dueAll = deaths.filter((x) => x.kind === 'mortality' && !x.hasPhoto).length;
 
   return (
     <>
@@ -40,6 +49,9 @@ export function HouseStatus({ date }) {
         <span className="badge confirmed">확정 {done} / {houses.length}</span>
         {late > 0 && <span className="badge draft">미시작 {late}</span>}
         <span className="spacer" />
+        <button className="btn" onClick={() => setLogOpen(true)}>
+          폐사·도태 일지{dueAll > 0 ? ` · 사진 보완 ${dueAll}` : ''}
+        </button>
         <button className="btn" onClick={() => nav(`/status/${shiftDate(date, -1)}`)}>‹ 전날</button>
         <button className="btn" onClick={() => nav(`/status/${shiftDate(date, 1)}`)}>다음날 ›</button>
       </div>
@@ -54,6 +66,8 @@ export function HouseStatus({ date }) {
               <th>제출</th>
               <th>확정</th>
               <th>출력</th>
+              <th>폐사</th>
+              <th>도태</th>
             </tr>
           </thead>
           <tbody>
@@ -74,6 +88,11 @@ export function HouseStatus({ date }) {
                 <td className="readonly">{time(h.submittedAt)}</td>
                 <td className="readonly">{time(h.confirmedAt)}</td>
                 <td className="readonly">{h.printedAt ? '출력됨' : ''}</td>
+                <td className="readonly">
+                  {per(h.houseId, 'mortality') || ''}
+                  {dueOf(h.houseId) > 0 && <span className="dl-due" title="사진 보완 필요"> ●</span>}
+                </td>
+                <td className="readonly">{per(h.houseId, 'culling') || ''}</td>
               </tr>
             ))}
           </tbody>
@@ -81,8 +100,13 @@ export function HouseStatus({ date }) {
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>
-        돈사를 누르면 그 날 일보로 갑니다.
+        돈사를 누르면 그 날 일보로 갑니다. <span className="dl-due">●</span> 는 폐사 사진 보완이 남은 돈사입니다.
       </p>
+
+      {logOpen && (
+        <DeathLog date={date} onClose={() => setLogOpen(false)}
+                  onOpenReport={(id) => nav(`/report/${id}/${date}`)} />
+      )}
     </>
   );
 }

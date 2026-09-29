@@ -219,6 +219,14 @@ try {
     const seenBuf = Buffer.from(await seen.arrayBuffer());
     ck('올린 사진을 그대로 돌려준다', seen.status === 200 && seenBuf.equals(img), `실제 ${seen.status}`);
 
+    const log = await call('GET', `/api/deaths?date=${TEST_DATE}`);
+    ck('폐사·도태 일지에 그 날 기록이 모인다', log.status === 200 && log.body?.items?.length === 3,
+      `실제 ${log.status} ${log.body?.items?.length}`);
+    ck('일지는 사진 보완 대기를 알려 준다',
+      log.body?.items?.filter((x) => x.kind === 'mortality' && !x.hasPhoto).length === 1);
+    const logOther = await call('GET', `/api/deaths?date=${TEST_DATE}&houseId=${bunman}`);
+    ck('담당 아닌 돈사 일지는 403', logOther.status === 403, `실제 ${logOther.status}`);
+
     const del = await call('DELETE', `${D}/mortality/${waived.body?.item?.id}`);
     ck('빼면 그 줄 폐사가 준다', del.status === 200 && del.body?.row?.deadHead === 1, JSON.stringify(del.body));
 
