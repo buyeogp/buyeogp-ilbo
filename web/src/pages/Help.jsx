@@ -17,7 +17,7 @@ import { GLOSSARY, GLOSSARY_UI } from '../help/glossary.js';
 const HQ = ['hq_staff', 'hq_manager'];
 
 /** 없는 말은 한국어로 — 빈칸보다 낫다 */
-const say = (o, lang) => (o == null ? '' : (o[lang] || o.ko || ''));
+export const say = (o, lang) => (o == null ? '' : (o[lang] || o.ko || ''));
 
 /** *별표* 안은 굵게. 문장을 데이터로 두면서 강조만 살리는 가장 싼 방법. */
 function rich(s) {
@@ -26,7 +26,7 @@ function rich(s) {
   ));
 }
 
-const T = ({ v, lang }) => <>{rich(say(v, lang))}</>;
+export const T = ({ v, lang }) => <>{rich(say(v, lang))}</>;
 
 function defaultView(roles = []) {
   if (roles.includes('admin')) return 'admin';
@@ -38,7 +38,7 @@ function defaultView(roles = []) {
  * 화면 그림. 번호는 그림 위에 얹는다 — 구워 넣으면 글자가 뭉개지고,
  * 무엇보다 언어를 바꿀 수 없다.
  */
-function Figure({ fig, lang }) {
+export function Figure({ fig, lang }) {
   return (
     <figure className="shot">
       <div className="shot-img">
@@ -57,7 +57,7 @@ function Figure({ fig, lang }) {
   );
 }
 
-function Block({ b, lang }) {
+export function Block({ b, lang }) {
   if (b.h3) return <h3><T v={b.h3} lang={lang} /></h3>;
   if (b.p) return <p><T v={b.p} lang={lang} /></p>;
   if (b.warn) return <p className="warn-line"><T v={b.warn} lang={lang} /></p>;

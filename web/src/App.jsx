@@ -13,6 +13,7 @@ import { DailyReport } from './pages/DailyReport.jsx';
 import { HouseStatus } from './pages/HouseStatus.jsx';
 import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
+import { TestGuide } from './pages/TestGuide.jsx';
 
 const FARM_WIDE = ['farm_manager', 'hq_staff', 'hq_manager', 'auditor'];
 const HQ = ['hq_staff', 'hq_manager'];
@@ -67,6 +68,8 @@ function Shell({ me, onSignedOut }) {
                  element={<StatusRoute me={me} onDate={setDate} />} />
           <Route path="/admin" element={<Admin me={me} />} />
           <Route path="/help" element={<Help me={me} />} />
+          {/* 발주처 시험 기간 전용 — 정식 가동하면 이 줄과 위쪽 단추를 내린다 */}
+          <Route path="/test" element={<TestGuide me={me} />} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </main>
@@ -117,6 +120,8 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
           <button onClick={() => nav('/admin')}
                   aria-current={loc.pathname === '/admin'}>계정 관리</button>
         )}
+        <button onClick={() => nav('/test')}
+                aria-current={loc.pathname === '/test'}>테스트 안내</button>
         <button onClick={() => nav('/help')}
                 aria-current={loc.pathname === '/help'}>설명서</button>
       </nav>
