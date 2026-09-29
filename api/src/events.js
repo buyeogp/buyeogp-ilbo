@@ -108,4 +108,18 @@ export function publishSaved(head, user) {
   s.timer.unref?.();
 }
 
+/**
+ * 한 사람에게만 — 내 계정으로 누가 새로 로그인했다 (§6.4).
+ * 몰래 같이 쓰는 경우 알림이 새로 들어온 쪽에만 가면 정작 계정 주인은 모른다.
+ * 이미 열려 있는 **그 사람의** 화면들에 보낸다. 다른 사람에게는 가지 않는다.
+ */
+export function publishToUser(userId, ev, exceptSessionId) {
+  const data = JSON.stringify({ ...ev, at: new Date().toISOString() });
+  for (const c of clients) {
+    if (String(c.user.userId) !== String(userId)) continue;
+    if (exceptSessionId && String(c.sessionId) === String(exceptSessionId)) continue;
+    c.res.write(`event: account\ndata: ${data}\n\n`);
+  }
+}
+
 export const liveCount = () => clients.size;

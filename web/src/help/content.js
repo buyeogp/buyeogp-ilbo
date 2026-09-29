@@ -73,6 +73,8 @@ export const SECTIONS = [
           '*Your name* → *"열려 있는 로그인"* lists every place you are logged in (device, login time, last use).'),
         t('*모르는 기기*가 있으면 누군가 내 비밀번호를 안다는 뜻입니다. *「다른 곳 모두 로그아웃」* 을 누르고 *비밀번호를 바꿉니다.*',
           'An *unknown device* means someone knows your password. Press *"다른 곳 모두 로그아웃"* and *change your password.*'),
+        t('반대로 *이미 로그인해 있는데* 누군가 내 계정으로 새로 들어오면, 지금 보는 화면 위에 빨간 *「내 계정으로 방금 다른 곳에서 로그인했습니다」* 가 뜹니다. 저절로 사라지지 않습니다. 내가 한 것이면 *닫기*, 아니면 그 자리에서 *「다른 곳 모두 로그아웃」* 을 누르고 비밀번호를 바꿉니다.',
+          'And if you are *already logged in* and someone logs into your account, a red *"your account was just logged in elsewhere"* notice appears on your screen. It stays until you close it. If it was you, *close* it; if not, press *"다른 곳 모두 로그아웃"* right there and change your password.'),
       ] },
       { warn: t('계정은 *한 사람에 하나*입니다. 다른 사람과 같이 쓰면 누가 입력했는지 기록이 남지 않습니다.',
                 'One account *per person*. Sharing it with someone else destroys the record of who entered what.') },

@@ -8,6 +8,7 @@ import { config } from '../../config.js';
 import { HttpError, requireAuth, wrap } from '../middleware.js';
 import { hashPassword, passwordProblem, verifyPassword } from '../../auth/password.js';
 import { adminConfigured, atx } from '../../db/adminPool.js';
+import { publishToUser } from '../../events.js';
 
 export const authRouter = Router();
 
@@ -37,6 +38,11 @@ authRouter.post('/login', wrap(async (req, res) => {
 
   // 같은 계정이 다른 곳에서도 열려 있으면 알려 준다 — 계정 공유 금지 (§6.4)
   const others = await siblingSessions(r.user.id, r.session.id);
+  // 이미 열려 있는 내 화면들에도 — 몰래 들어온 쪽에만 알리면 계정 주인은 모른다
+  if (others.length) {
+    publishToUser(r.user.id, { kind: 'login', device: deviceLabel(req.headers['user-agent']) },
+      r.session.id);
+  }
 
   res.json({
     user: r.user,

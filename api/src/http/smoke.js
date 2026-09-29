@@ -129,7 +129,22 @@ try {
   {
     const first = cookie;
     cookie = '';
+    // 먼저 열려 있던 쪽(first)이 실시간으로 듣고 있으면 새 로그인 경고를 받아야 한다
+    const ctrl = new AbortController();
+    const firstLive = await fetch(base + '/api/events', { headers: { cookie: first }, signal: ctrl.signal });
+    const reader = firstLive.body.getReader();
+    let heard = '';
+    const pump = (async () => {
+      const dec = new TextDecoder();
+      try { for (;;) { const { value, done } = await reader.read(); if (done) break; heard += dec.decode(value); } }
+      catch { /* 닫았다 */ }
+    })();
     const second = await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+    await new Promise((ok) => setTimeout(ok, 300));
+    ctrl.abort();
+    await pump;
+    ck('먼저 로그인해 있던 쪽에 「새 로그인」 경고가 간다', /event: account/.test(heard) && /"kind":"login"/.test(heard),
+      heard.slice(-160));
     ck('다른 곳 로그인이 있으면 알려 준다', second.body?.otherSessions >= 1 && !!second.body?.otherLatest,
       JSON.stringify(second.body?.otherLatest));
     const list = await call('GET', '/api/auth/sessions');

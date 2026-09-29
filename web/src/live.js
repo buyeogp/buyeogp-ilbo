@@ -30,6 +30,10 @@ function connect() {
   es.addEventListener('change', (e) => {
     try { emit('change', JSON.parse(e.data)); } catch { /* 모양이 다르면 버린다 */ }
   });
+  // 내 계정 알림 — 누가 내 계정으로 새로 로그인했다
+  es.addEventListener('account', (e) => {
+    try { emit('account', JSON.parse(e.data)); } catch { /* 버린다 */ }
+  });
   // 세션이 끝났다 — 다시 붙지 않는다. 다음 요청이 로그인 화면으로 보낸다
   es.addEventListener('bye', () => { stop(); emit('bye'); });
   es.onerror = () => {

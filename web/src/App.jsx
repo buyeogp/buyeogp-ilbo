@@ -76,6 +76,7 @@ function Shell({ me, onSignedOut }) {
               onSignedOut={() => { live.stop(); onSignedOut(); }} />
       <Toasts me={me} farmWide={farmWide} />
       <OtherLogin />
+      <NewLoginAlert />
       <main>
         <Routes>
           <Route path="/" element={<Navigate to={home} replace />} />
@@ -200,6 +201,51 @@ function OtherLogin() {
         <span className="spacer" />
         <button className="btn small" onClick={() => { setOpen(true); setHidden(true); }}>열린 로그인 보기</button>
         <button className="btn small" onClick={() => setHidden(true)}>닫기</button>
+      </div>
+      {open && <Sessions onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * 누가 **내 계정으로** 방금 다른 곳에서 로그인했다 — 이미 열려 있던 내 화면에 뜬다 (§6.4).
+ * 저절로 사라지지 않는다. 내가 한 것(휴대폰 등)이면 닫고, 아니면 바로 끊는다.
+ */
+function NewLoginAlert() {
+  const [ev, setEv] = useState(null);
+  const [state, setState] = useState(null);     // null | 'ask' | 'done' | 'err'
+  const [open, setOpen] = useState(false);
+  useEffect(() => live.on((type, e) => {
+    if (type === 'account' && e.kind === 'login') { setEv(e); setState(null); }
+  }), []);
+  if (!ev) return open ? <Sessions onClose={() => setOpen(false)} /> : null;
+  const at = new Date(ev.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className="notes other-login" role="alert">
+      <div className="note block">
+        <span className="where">새 로그인</span>
+        <span>
+          <b>내 계정으로 방금 다른 곳에서 로그인했습니다</b> ({ev.device}, {at}).
+          {' '}내가 한 것(휴대폰 등)이면 닫으십시오. <b>내가 아니면</b> 다른 곳을 모두 로그아웃하고 비밀번호를 바꾸십시오.
+          {state === 'done' && <b className="dl-ok"> 다른 곳을 모두 로그아웃했습니다. 이제 비밀번호를 바꾸십시오 (내 이름 → 비밀번호 바꾸기).</b>}
+          {state === 'err' && <b> 로그아웃하지 못했습니다. 내 이름 → 열려 있는 로그인에서 다시 해 주십시오.</b>}
+        </span>
+        <span className="spacer" />
+        {state === 'ask' ? (
+          <span className="inline-confirm">
+            이 화면만 남기고 모두 로그아웃합니다.
+            <button className="btn small" onClick={() => setState(null)}>그대로</button>
+            <button className="btn small danger" onClick={async () => {
+              try { await api.revokeOthers(); setState('done'); } catch { setState('err'); }
+            }}>로그아웃합니다</button>
+          </span>
+        ) : state !== 'done' && (
+          <>
+            <button className="btn small danger" onClick={() => setState('ask')}>다른 곳 모두 로그아웃</button>
+            <button className="btn small" onClick={() => setOpen(true)}>열린 로그인 보기</button>
+          </>
+        )}
+        <button className="btn small" onClick={() => setEv(null)}>닫기</button>
       </div>
       {open && <Sessions onClose={() => setOpen(false)} />}
     </div>
