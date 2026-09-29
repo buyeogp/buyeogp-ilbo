@@ -10,7 +10,7 @@
  *   node src/db/scope.js                                   현재 담당 현황
  *   node src/db/scope.js --user pemba                      한 사람
  *   node src/db/scope.js --house BIYUK_F                   한 돈사
- *   node src/db/scope.js --move BIYUK_F --to shin.dw       담당자 교체
+ *   node src/db/scope.js --move BIYUK_F --to seo.mb       담당자 교체
  *   node src/db/scope.js --add  --user ham --house JADON   추가
  *   node src/db/scope.js --end  --user ham --house JADON   해제
  *   ... --from 2026-10-01                                  적용일 (기본 오늘)

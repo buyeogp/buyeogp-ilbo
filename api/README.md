@@ -157,7 +157,7 @@ npm run setup:admin     # 계정 생성 + SoD-3 실제 확인 10건
 npm run scope                                        # 현재 담당 현황
 npm run scope -- --user pemba                        # 한 사람의 이력
 npm run scope -- --house BIYUK_F                     # 한 돈사의 이력
-npm run scope -- --move BIYUK_F --to shin.dw --from 2026-10-01
+npm run scope -- --move BIYUK_F --to seo.mb --from 2026-10-01
 npm run scope -- --add --user ham --house GYERYU
 npm run scope -- --end --user ham --house GYERYU --from 2026-10-01
 npm run scope -- ... --dry                           # 바꾸지 않고 보기만

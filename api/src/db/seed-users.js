@@ -25,12 +25,13 @@ const PEOPLE = [
     houses: ['YUKSUNG', 'BIYUK_M', 'BIYUK_F', 'GEOMJUNG'], note: '육성·비육·검정' },
   { loginId: 'choi.ij', name: '최임재 부장', role: 'farm_manager',
     houses: [], note: '현장 총괄' },
-  { loginId: 'shin.dw', name: '신동욱 과장', role: 'farm_manager',
-    houses: ['YUKSUNG', 'BIYUK_M', 'BIYUK_F', 'GEOMJUNG'], note: '육성·비육·검정' },
+  // 2026-09-29 발주처 요청: 신동욱 과장 → 서민부 실장. 운영 DB 에는 확정 권한(hq_manager)도 있다
+  { loginId: 'seo.mb',  name: '서민부 실장', role: 'farm_manager',
+    houses: ['YUKSUNG', 'BIYUK_M', 'BIYUK_F', 'GEOMJUNG'], note: '육성·비육·검정 · 확정' },
   { loginId: 'hq.staff', name: '본사 팀장',  role: 'hq_staff',
     houses: [], note: '확정' },
-  { loginId: 'hq.mgr',   name: '본사 실장',  role: 'hq_manager',
-    houses: [], note: '정정 승인·마감' },
+  { loginId: 'kim.yb',   name: '김영빈 실장', role: 'hq_manager',
+    houses: [], note: '본사 대표 · 확정 · 정정 승인·마감' },
 ];
 
 const reset = process.argv.includes('--reset');

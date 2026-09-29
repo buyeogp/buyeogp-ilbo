@@ -161,7 +161,7 @@ SELECT '번식돈'::vaccine_target, '연간고정'::vaccine_basis, 0, v.m, v.w, 
 --   L2 team_lead    라주   자돈사
 --   L2 team_lead    펨바   육성사 · 비육사 · 검정사
 --   L3 farm_manager 최임재 부장  전 돈사 (현장 총괄)
---   L3 farm_manager 신동욱 과장  육성 · 비육 · 검정
+--   L3 farm_manager 서민부 실장  육성 · 비육 · 검정 (2026-09-29 신동욱 과장에서 교체)
 --   L5 hq_manager   본사 실장     전체
 --
 -- 발급 예:
