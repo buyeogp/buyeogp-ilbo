@@ -18,6 +18,7 @@ import {
 import { DeathPanel } from '../components/DeathPanel.jsx';
 import { DeathLog } from '../components/DeathLog.jsx';
 import { DateNav } from '../components/DateNav.jsx';
+import { on as onLive } from '../live.js';
 
 const CONFIRMERS = ['hq_staff', 'hq_manager'];
 const UNCONFIRMERS = ['farm_manager', 'hq_staff', 'hq_manager'];
@@ -98,8 +99,38 @@ export function DailyReport({ me, houseId, date, onChanged }) {
 
   useEffect(() => { load(); }, [load]);
 
+  /**
+   * 실시간 — 이 돈사·날짜가 바뀌었다는 알림이 오면 새로 받는다.
+   * 입력 중인 화면은 **통째로 다시 받지 않는다** (치던 숫자가 날아간다).
+   * 시스템이 정하는 값(전일·폐사·도태·당일)과 상태·안내만 고친다 — 자동 저장과 같은 방식.
+   */
+  const editableRef = useRef(false);
+  const refreshLive = useCallback(async () => {
+    try {
+      const d = await api.report(houseId, date);
+      if (!editableRef.current) { await load(); return; }
+      const byKey = new Map(d.rows.map((r) => [`${r.penId ?? ''}|${r.categoryId ?? ''}`, r]));
+      setRows((old) => old.map((r) => {
+        const c = byKey.get(`${r.penId ?? ''}|${r.categoryId ?? ''}`);
+        return c ? { ...r, openingHead: c.openingHead ?? r.openingHead,
+                     deadHead: c.deadHead, culledHead: c.culledHead } : r;
+      }));
+      setData((old) => (old ? { ...old, report: d.report, canWrite: d.canWrite } : d));
+      setViolations(d.violations);
+      if (d.report) api.deaths(d.report.id).then(setDeaths).catch(() => {});
+    } catch { /* 다음 알림 때 다시 */ }
+  }, [houseId, date, load]);
+  useEffect(() => onLive((type, ev) => {
+    if (type === 'resync'
+        || (type === 'change' && String(ev.houseId) === String(houseId) && ev.date === date
+            && ev.kind !== 'printed')) {
+      refreshLive();
+    }
+  }), [houseId, date, refreshLive]);
+
   const status = data?.report?.status ?? null;
   const editable = !!data?.canWrite && status === 'draft' && !narrow;
+  editableRef.current = editable;
 
   const change = useCallback((ri, key, value) => {
     setRows((old) => old.map((r, i) => (i === ri ? { ...r, [key]: value } : r)));

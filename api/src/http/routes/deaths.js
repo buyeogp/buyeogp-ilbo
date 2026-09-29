@@ -12,6 +12,13 @@ import express, { Router } from 'express';
 import { tx } from '../../db/pool.js';
 import { HttpError, canAccessHouse, canWriteHouse, requireAuth, wrap } from '../middleware.js';
 import { TYPES, canStore, getPhoto, putPhoto } from '../../photos.js';
+import { publish, reportHead } from '../../events.js';
+
+/** 폐사·도태가 바뀌면 그 일보를 보는 화면이 다시 받게 알린다 */
+async function tellDeaths(q, reportId, user, note) {
+  const head = await reportHead(q, reportId);
+  return head && { kind: 'deaths', ...head, by: user.name, byId: user.userId, note };
+}
 
 export const deathsRouter = Router({ mergeParams: true });
 deathsRouter.use(requireAuth);
@@ -202,8 +209,10 @@ deathsRouter.post('/', wrap(async (req, res) => {
     }
     // 폐사와 도태는 번호가 따로 매겨진다 — 같은 번호가 둘 다 있을 수 있어 종류로 고른다
     const item = (await q.all(LIST('X.id = $1'), [row.id])).find((x) => x.kind === kind);
-    return { item, row: await rowSums(q, r, penId, categoryId) };
+    return { item, row: await rowSums(q, r, penId, categoryId),
+             ev: await tellDeaths(q, r.id, req.user, `${KINDS[kind]} ${head}두`) };
   });
+  if (out.ev) publish(out.ev);
 
   res.status(201).json({ item: shape(out.item), row: out.row });
 }));
@@ -217,9 +226,11 @@ deathsRouter.delete('/:kind/:id', wrap(async (req, res) => {
       `DELETE FROM app.${kind} WHERE id = $1 AND house_id = $2 AND event_date = $3::date
        RETURNING pen_id, category_id`, [req.params.id, r.house_id, r.d]);
     if (!gone) throw new HttpError(404, 'not_found', '이미 빠졌거나 없는 기록입니다.');
-    return rowSums(q, r, gone.pen_id, gone.category_id);
+    return { row: await rowSums(q, r, gone.pen_id, gone.category_id),
+             ev: await tellDeaths(q, r.id, req.user, `${KINDS[kind]} 기록 뺌`) };
   });
-  res.json({ row: out });
+  if (out.ev) publish(out.ev);
+  res.json({ row: out.row });
 }));
 
 /**
@@ -241,9 +252,11 @@ deathsRouter.post('/mortality/:id/photo', wrap(async (req, res) => {
         WHERE id = $1 AND house_id = $2 AND event_date = $4::date RETURNING id`,
       [req.params.id, r.house_id, photoKey, r.d]);
     if (!u) throw new HttpError(404, 'not_found', '폐사 기록을 찾을 수 없습니다.');
-    return (await q.all(LIST('X.id = $1'), [u.id])).find((x) => x.kind === 'mortality');
+    return { item: (await q.all(LIST('X.id = $1'), [u.id])).find((x) => x.kind === 'mortality'),
+             ev: await tellDeaths(q, r.id, req.user, '폐사 사진 보완') };
   });
-  res.json({ item: shape(out) });
+  if (out.ev) publish(out.ev);
+  res.json({ item: shape(out.item) });
 }));
 
 /** 사진 보기 — URL 을 내주지 않고 권한을 본 뒤 대신 읽어 보낸다 */

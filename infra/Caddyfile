@@ -7,9 +7,9 @@
 # 같은 주소라 CORS 설정이 필요 없고, 세션 쿠키도 그대로 붙는다.
 
 {$APP_DOMAIN} {
-	encode zstd gzip
-
-	# SSE (§5.8 본사 예외 큐 실시간) — 버퍼링을 끈다
+	# 실시간 알림 (§5.8) — 버퍼링도 압축도 하지 않는다. 압축은 조각을 모았다가 보내므로
+	# 알림이 몇 초씩 늦거나 핑이 막혀 연결이 끊긴다. 그래서 encode 를 사이트 전체가 아니라
+	# 아래 두 handle 에만 건다
 	handle /api/events* {
 		reverse_proxy api:3000 {
 			flush_interval -1
@@ -17,6 +17,7 @@
 	}
 
 	handle /api/* {
+		encode zstd gzip
 		reverse_proxy api:3000
 	}
 
@@ -28,6 +29,7 @@
 	# 화면. 화면이 /report/5/2026-09-28 같은 주소를 쓰는데 그 파일은 없다 —
 	# 모르는 주소는 index.html 로 돌려야 새로고침(F5)해도 404 가 나지 않는다.
 	handle {
+		encode zstd gzip
 		root * /srv/web
 
 		# 빌드 결과물은 파일 이름에 해시가 붙어 있어 오래 캐시해도 된다.

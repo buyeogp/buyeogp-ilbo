@@ -272,11 +272,54 @@ try {
     { kind: 'culling', penId: rows[0].penId, headCount: 1, reasonCode: '05' });
   ck('제출 후 폐사·도태 추가 거부', lockedDeath.status === 409, `실제 ${lockedDeath.status}`);
 
+  // 실시간 알림 (§5.8) — 본사가 듣는 동안 팀장이 제출 취소·다시 제출하면 본사에 온다
+  const leadCookie = cookie;
+  cookie = '';
+  await call('POST', '/api/auth/login', { loginId: 'smoke.hq', password: TEST_PW });
+  const hqCookie = cookie;
+  cookie = leadCookie;
+  const listen = async (ck) => {
+    const ctrl = new AbortController();
+    const r = await fetch(base + '/api/events', { headers: { cookie: ck }, signal: ctrl.signal });
+    const got = [];
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    (async () => {
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf('\n\n')) >= 0) {
+            const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+            if (/^event: change$/m.test(chunk)) got.push(JSON.parse(/^data: (.*)$/m.exec(chunk)[1]));
+          }
+        }
+      } catch { /* 닫았다 */ }
+    })();
+    return { status: r.status, type: r.headers.get('content-type'), got, close: () => ctrl.abort() };
+  };
+  const hqLive = await listen(hqCookie);
+  ck('실시간 연결', hqLive.status === 200 && /event-stream/.test(hqLive.type ?? ''),
+    `실제 ${hqLive.status} ${hqLive.type}`);
+
   // 제출 취소 — 확정 전이면 팀장이 스스로 거둔다
   const wd = await call('POST', `/api/reports/${reportId}/withdraw`);
   ck('제출 취소하면 작성 중으로', wd.status === 200 && wd.body?.status === 'draft', JSON.stringify(wd.body));
   const re1 = await call('POST', `/api/reports/${reportId}/submit`);
   ck('다시 제출', re1.status === 200, JSON.stringify(re1.body));
+  await new Promise((ok) => setTimeout(ok, 400));
+  const kinds = hqLive.got.filter((e) => String(e.houseId) === String(jadon)).map((e) => e.kind);
+  ck('본사에 「제출 취소」·「제출됨」이 실시간으로 온다',
+    kinds.includes('withdrawn') && kinds.includes('submitted'), JSON.stringify(kinds));
+  ck('알림에는 숫자가 없다 (돈사·날짜·종류만)',
+    hqLive.got.every((e) => !('rows' in e) && !('closingHead' in e)) && hqLive.got[0]?.houseName === '자돈사');
+  hqLive.close();
+  const anon = await fetch(base + '/api/events');
+  ck('로그인 없이 실시간 연결 거부', anon.status === 401, `실제 ${anon.status}`);
+
   const selfReturn = await call('POST', `/api/reports/${reportId}/return`, { reason: '셀프' });
   ck('팀장은 되돌려 보내기 권한 없음', selfReturn.status === 403, `실제 ${selfReturn.status}`);
 

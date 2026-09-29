@@ -84,7 +84,7 @@ export async function htmlToPdf(html, { launch } = {}) {
 
 /** CLI: node src/pdf/render.js <샘플키> [출력경로] */
 const { pathToFileURL } = await import('node:url');
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { buildSamples } = await import('./sample.js');
   const key = process.argv[2] ?? 'JADON';
   const out = process.argv[3] ?? `out/${key}.pdf`;

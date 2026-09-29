@@ -14,6 +14,8 @@ import { HouseStatus } from './pages/HouseStatus.jsx';
 import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
 import { TestGuide } from './pages/TestGuide.jsx';
+import { Toasts } from './components/Toasts.jsx';
+import * as live from './live.js';
 
 const FARM_WIDE = ['farm_manager', 'hq_staff', 'hq_manager', 'auditor'];
 const HQ = ['hq_staff', 'hq_manager'];
@@ -50,6 +52,13 @@ function Shell({ me, onSignedOut }) {
 
   useEffect(() => { loadStatus(date); }, [date, loadStatus]);
 
+  // 실시간 알림 — 로그인해 있는 동안 연결 하나. 위쪽 돈사 탭의 점(상태)도 따라 바뀐다
+  useEffect(() => { live.start(); return () => live.stop(); }, []);
+  useEffect(() => live.on((type, ev) => {
+    if (type === 'resync' || (type === 'change' && ev.date === date)) loadStatus(date);
+    if (type === 'bye') onSignedOut();
+  }), [date, loadStatus, onSignedOut]);
+
   const home = houses[0]
     ? `/report/${houses[0].houseId}/${date}`
     : (myHouses[0] ? `/report/${myHouses[0].houseId}/${date}` : `/status/${date}`);
@@ -57,7 +66,8 @@ function Shell({ me, onSignedOut }) {
   return (
     <div className="shell">
       <TopBar me={me} houses={houses} date={date} farmWide={farmWide}
-              onSignedOut={onSignedOut} />
+              onSignedOut={() => { live.stop(); onSignedOut(); }} />
+      <Toasts me={me} farmWide={farmWide} />
       <main>
         <Routes>
           <Route path="/" element={<Navigate to={home} replace />} />

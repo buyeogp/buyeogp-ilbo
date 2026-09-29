@@ -17,6 +17,7 @@ import { JONGBU_SHEET, combineJongbu, reportFromDb } from '../../pdf/fromDb.js';
 import { contentHash as hashOf, htmlToPdf, renderPdf } from '../../pdf/render.js';
 import { renderDayBundle } from '../../pdf/layout.js';
 import { putFile } from '../../photos.js';
+import { publish, reportHead } from '../../events.js';
 
 export const pdfRouter = Router({ mergeParams: true });
 pdfRouter.use(requireAuth);
@@ -50,8 +51,11 @@ pdfRouter.get('/', wrap(async (req, res) => {
 
   if (official) {
     // 출력 기록 — 제출 현황의 「출력」 칸이 이것을 본다
-    await tx(req.user.userId, (q) =>
-      q('UPDATE app.daily_report SET printed_at = now() WHERE id = $1', [req.params.reportId]));
+    const head = await tx(req.user.userId, async (q) => {
+      await q('UPDATE app.daily_report SET printed_at = now() WHERE id = $1', [req.params.reportId]);
+      return reportHead(q, req.params.reportId);
+    });
+    if (head) publish({ kind: 'printed', ...head, by: req.user.name, byId: req.user.userId });
     // 3년 보관본. 실패해도 종이 출력은 막지 않는다 — 사람이 기다리고 있다
     const key = `${rp.farmId}/${rp.houseId}/${rp.reportDate}/${rp.reportNo}-${contentHash.slice(0, 16)}.pdf`;
     putFile('daily-report-pdf', key, pdf, 'application/pdf')

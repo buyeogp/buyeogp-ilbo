@@ -106,8 +106,8 @@ export const TG_SECTIONS = [
       { ul: [
         t('약품 사용·*휴약기간*, 백신 기록', 'Medicine use and *withdrawal periods*, vaccination records'),
         t('분만사 하위 표 — 분만·이유·도폐사 현황', 'Farrowing-house sub-tables — farrowing, weaning, deaths'),
-        t('본사 *실시간 알림*(이상 있는 일보가 바로 뜨는 목록), 미제출 알림(웹 알림·카카오 알림톡)',
-          'Head office *live alerts* (a list of reports with problems), reminders for unsubmitted reports (web push, KakaoTalk)'),
+        t('미제출 알림 (마감 시각까지 안 낸 돈사를 휴대폰으로 — 웹 알림·카카오 알림톡)',
+          'Reminders for unsubmitted reports (to phones by the deadline — web push, KakaoTalk)'),
         t('*비밀번호를 본인이 바꾸기*, 본사 계정 2단계 인증 — 지금은 관리자가 재발급합니다',
           '*Changing your own password*, two-step login for head office — for now the administrator issues new ones'),
         t('용어 카드의 *네팔어* 칸 — 팀장께 부탁드려 채웁니다', 'The *Nepali* column of the word card — to be filled with a team lead’s help'),
@@ -128,6 +128,8 @@ export const TG_SECTIONS = [
         t('본사: 확인 · 확정', 'Head office: check and confirm'),
         t('다음 날 일보를 시작할 수 있음', 'The next day can start'),
       ] },
+      { p: t('제출·확정·되돌려 보내기가 일어나면 상대 화면이 *새로고침 없이 바뀌고*, 오른쪽 아래에 *알림*이 뜹니다 (예: 「자돈사 9/29 제출됨 · 라주」). 알림을 누르면 그 일보로 갑니다. 자세한 것은 설명서의 *「실시간 알림」* 을 보십시오.',
+             'When a report is submitted, confirmed or sent back, the other person’s screen *updates without F5* and a *notice* appears at the bottom right (e.g. "자돈사 9/29 제출됨 · 라주"). Click it to open that report. See *"실시간 알림"* in the user guide.') },
       { warn: t('*본사가 확정해야 다음 날 일보를 시작할 수 있습니다.* 오늘 일보가 확정되지 않으면 내일 「일보 시작」을 눌렀을 때 「앞 일보(날짜)가 아직 확정되지 않았습니다」가 나옵니다. 틀린 숫자가 다음 날로 넘어가지 않게 하는 장치입니다. 테스트 중에도 *본사는 매일 확정*해 주십시오.',
                 '*The next day cannot start until head office confirms.* If today is not confirmed, pressing "일보 시작" tomorrow shows "the previous report (date) is not confirmed yet". This stops a wrong number from carrying into the next day. During the test too, *head office please confirm every day*.') },
     ],
@@ -255,6 +257,8 @@ export const TG_SECTIONS = [
         t('*전일두수*가 어제 엑셀의 당일두수와 같습니까? (아래 「과거 엑셀 자료」를 먼저 읽어 주십시오)',
           'Is the *opening count* the same as yesterday’s Excel closing? (Read "Past Excel data" below first)'),
         t('*PDF 미리보기*의 숫자와 모양이 엑셀 일보와 같습니까?', 'Do the numbers and layout of the *PDF preview* match the Excel report?'),
+        t('*실시간 알림*: 팀장 PC 에서 제출할 때 본사 PC 의 제출 현황이 새로고침 없이 바뀌고 알림이 뜹니까? 본사가 되돌려 보내면 팀장 화면에 빨간 알림이 뜹니까? 알림이 늦거나 안 오면 몇 시쯤이었는지 알려 주십시오.',
+          '*Live notices*: when a team lead submits on one PC, does head office’s status board update without F5 and show a notice? When head office sends a report back, does the team lead get a red notice? If a notice is late or missing, tell us roughly when.'),
         t('엑셀보다 *느리거나 불편한 곳*, 뜻을 모르겠는 낱말이 있습니까?',
           'Is anything *slower or harder* than Excel, or any word you do not understand?'),
       ] },
@@ -268,6 +272,8 @@ export const TG_SECTIONS = [
     title: t('본사가 해 주실 일', 'For head office'),
     blocks: [
       { h3: t('1. 「제출 현황」을 봅니다', '1. Open "제출 현황" (Status)') },
+      { p: t('이 화면은 *켜 두기만 하면 됩니다.* 팀장이 제출하면 새로고침 없이 상태가 바뀌고, 오른쪽 아래에 *「자돈사 9/29 제출됨」* 알림이 뜹니다. 누르면 그 일보로 갑니다.',
+             'Just *leave this screen open.* When a team lead submits, the status changes without F5 and a *"자돈사 9/29 제출됨"* notice appears at the bottom right. Click it to open the report.') },
       { p: t('위쪽 *제출 현황*을 누르면 12개 돈사가 한 장에 나옵니다. 어느 돈사가 아직 안 냈는지 여기서 봅니다.',
              'Press *제출 현황* at the top to see all 12 houses on one page — which have not submitted yet.') },
       { figure: {

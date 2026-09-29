@@ -5,11 +5,12 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from '../config.js';
 import { pool } from '../db/pool.js';
-import { attachUser, errorHandler, noStore, HttpError } from './middleware.js';
+import { attachUser, errorHandler, noStore, HttpError, requireAuth } from './middleware.js';
 import { authRouter } from './routes/auth.js';
 import { reportsRouter } from './routes/reports.js';
 import { deathsRouter, deathLogRouter } from './routes/deaths.js';
 import { pdfRouter, dayPdfRouter } from './routes/pdf.js';
+import { subscribe } from '../events.js';
 import { adminRouter } from './routes/admin.js';
 
 export function createApp() {
@@ -32,6 +33,8 @@ export function createApp() {
 
   app.use('/api', noStore, attachUser);
   app.use('/api/auth', authRouter);
+  // 실시간 알림 (§5.8) — Caddy 가 이 경로만 버퍼링하지 않는다
+  app.get('/api/events', requireAuth, subscribe);
   // 폐사·도태는 일보 아래에 있다. reportsRouter 의 /:houseId/:date 가 먼저 잡지 않게 앞에 둔다
   app.use('/api/reports/:reportId/deaths', deathsRouter);
   app.use('/api/reports/:reportId/pdf', pdfRouter);

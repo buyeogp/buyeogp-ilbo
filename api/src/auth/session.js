@@ -156,3 +156,13 @@ export const cookieOptions = (maxAgeSec) => ({
   path: '/',
   maxAge: maxAgeSec * 1000,
 });
+
+/**
+ * 세션이 아직 살아 있나 — 실시간 연결이 주기적으로 묻는다.
+ * resolve() 와 달리 마지막 활동 시각을 **밀지 않는다.** 연결이 열려 있는 것은
+ * 사람이 쓰고 있다는 뜻이 아니다 (§6.7 무조작 잠금을 막으면 안 된다).
+ */
+export async function sessionAlive(sessionId) {
+  return anon(async (q) =>
+    !!(await q.one('SELECT 1 AS ok FROM sec.v_active_session WHERE id = $1', [sessionId])));
+}

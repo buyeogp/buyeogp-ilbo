@@ -10,7 +10,13 @@ import { tx } from '../../db/pool.js';
 import { HttpError, requireAuth, requireRole, canAccessHouse, canWriteHouse, wrap }
   from '../middleware.js';
 
+import { publish, publishSaved, reportHead } from '../../events.js';
+
 export const reportsRouter = Router();
+
+/** 알림 한 건 — 커밋 뒤에 보낸다 (롤백된 변경을 알리면 안 된다) */
+const tell = (kind, head, user, extra = {}) => head && publish({
+  kind, ...head, by: user.name, byId: user.userId, ...extra });
 reportsRouter.use(requireAuth);
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -210,11 +216,13 @@ reportsRouter.post('/:houseId/:date/open', wrap(async (req, res) => {
     if (exist) return exist;
 
     const h = await q.one('SELECT farm_id FROM app.house WHERE id = $1', [houseId]);
-    return q.one(
+    const made = await q.one(
       `INSERT INTO app.daily_report (farm_id, house_id, report_date, status, author_id)
        VALUES ($1,$2,$3::date,'draft',$4) RETURNING id, status::text`,
       [h.farm_id, houseId, date, req.user.userId]);
+    return { ...made, head: await reportHead(q, made.id) };
   });
+  if (r.head) tell('started', r.head, req.user);
 
   res.status(201).json({ reportId: r.id, status: r.status });
 }));
@@ -289,8 +297,9 @@ reportsRouter.put('/:reportId/rows', wrap(async (req, res) => {
 
     const v = await q.all(`SELECT rule_code, severity::text, pen_code, message
                              FROM app.fn_validate_report($1)`, [rep.id]);
-    return { computed, violations: v };
+    return { computed, violations: v, head: await reportHead(q, rep.id) };
   });
+  publishSaved(out.head, req.user);
 
   res.json({
     saved: rows.length,
@@ -317,22 +326,28 @@ reportsRouter.post('/:reportId/submit', wrap(async (req, res) => {
     if (!canWriteHouse(req.user, rep.house_id)) {
       throw new HttpError(403, 'forbidden', '담당 돈사가 아닙니다.');
     }
-    return q.one(
+    const u = await q.one(
       `UPDATE app.daily_report
           SET status = 'submitted', submitted_at = now(),
               return_reason = NULL, returned_at = NULL, returned_by = NULL
         WHERE id = $1 RETURNING id, status::text, submitted_at`, [rep.id]);
+    return { ...u, head: await reportHead(q, rep.id) };
   });
+  tell('submitted', r.head, req.user);
   res.json({ reportId: r.id, status: r.status, submittedAt: r.submitted_at });
 }));
 
 /** 확정은 본사만. SoD-1 — 입력자는 자기 일보를 확정할 수 없다 (CHECK 가 막는다) */
 reportsRouter.post('/:reportId/confirm', requireRole('hq_staff', 'hq_manager'),
   wrap(async (req, res) => {
-    const r = await tx(req.user.userId, (q) => q.one(
-      `UPDATE app.daily_report SET status = 'confirmed'
-        WHERE id = $1 RETURNING id, status::text, confirmed_at`, [req.params.reportId]));
+    const r = await tx(req.user.userId, async (q) => {
+      const u = await q.one(
+        `UPDATE app.daily_report SET status = 'confirmed'
+          WHERE id = $1 RETURNING id, status::text, confirmed_at`, [req.params.reportId]);
+      return u && { ...u, head: await reportHead(q, u.id) };
+    });
     if (!r) throw new HttpError(404, 'not_found', '일보를 찾을 수 없습니다.');
+    tell('confirmed', r.head, req.user);
     res.json({ reportId: r.id, status: r.status, confirmedAt: r.confirmed_at });
   }));
 
@@ -358,12 +373,14 @@ reportsRouter.post('/:reportId/unconfirm',
   requireRole('farm_manager', 'hq_staff', 'hq_manager'), wrap(async (req, res) => {
     const r = await tx(req.user.userId, async (q) => {
       await assertNoLater(q, req.params.reportId);
-      return q.one(
+      const u = await q.one(
         `UPDATE app.daily_report SET status = 'submitted', confirmed_by = NULL, confirmed_at = NULL
           WHERE id = $1 AND status = 'confirmed' RETURNING id, status::text, printed_at`,
         [req.params.reportId]);
+      return u && { ...u, head: await reportHead(q, u.id) };
     });
     if (!r) throw new HttpError(409, 'not_confirmed', '확정된 일보가 아닙니다.');
+    tell('unconfirmed', r.head, req.user);
     res.json({ reportId: r.id, status: r.status, wasPrinted: !!r.printed_at });
   }));
 
@@ -382,10 +399,12 @@ reportsRouter.post('/:reportId/withdraw', wrap(async (req, res) => {
         : '이미 본사가 확정했습니다. 본사에 「확정 해제」를 부탁하십시오.');
     }
     await assertNoLater(q, rep.id);
-    return q.one(
+    const u = await q.one(
       `UPDATE app.daily_report SET status = 'draft', submitted_at = NULL
         WHERE id = $1 RETURNING id, status::text`, [rep.id]);
+    return { ...u, head: await reportHead(q, rep.id) };
   });
+  tell('withdrawn', r.head, req.user);
   res.json({ reportId: r.id, status: r.status });
 }));
 
@@ -407,11 +426,13 @@ reportsRouter.post('/:reportId/return',
           : '제출된 일보가 아닙니다.');
       }
       await assertNoLater(q, rep.id);
-      return q.one(
+      const u = await q.one(
         `UPDATE app.daily_report
             SET status = 'draft', submitted_at = NULL,
                 return_reason = $2, returned_at = now(), returned_by = $3
           WHERE id = $1 RETURNING id, status::text`, [rep.id, reason, req.user.userId]);
+      return { ...u, head: await reportHead(q, rep.id) };
     });
+    tell('returned', r.head, req.user, { note: reason });
     res.json({ reportId: r.id, status: r.status });
   }));

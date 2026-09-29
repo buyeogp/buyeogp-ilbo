@@ -473,6 +473,61 @@ export const SECTIONS = [
     ],
   },
 
+  /* ── 실시간 알림 ─────────────────────────────────────────────── */
+  {
+    id: 'live',
+    views: ['field', 'hq', 'admin'],
+    title: t('실시간 알림', 'Live notices'),
+    blocks: [
+      { p: t('다른 사람이 일보를 *제출하거나 확정하면*, 새로고침(F5)을 누르지 않아도 화면이 *저절로 바뀌고*, 화면 *오른쪽 아래*에 알림이 뜹니다.',
+             'When someone else *submits or confirms* a report, your screen *updates by itself* without pressing F5, and a notice appears at the *bottom right*.') },
+      { h3: t('어떤 알림이 오나', 'Which notices you get') },
+      { table: {
+        head: [t('알림', 'Notice'), t('뜻', 'Meaning'), t('받는 사람', 'Who gets it')],
+        rows: [
+          [t('자돈사 9/29 *제출됨* (초록)', 'Weaner house 9/29 *submitted* (green)'),
+           t('팀장이 제출했습니다 — 확정할 차례', 'The team lead submitted — ready to confirm'),
+           t('그 돈사를 볼 수 있는 사람 (본사 · 현장관리)', 'Everyone who can see that house (head office, farm managers)')],
+          [t('*제출 취소* (주황)', '*Submission withdrawn* (orange)'),
+           t('팀장이 고치려고 거뒀습니다', 'The team lead took it back to fix it'),
+           t('〃', '〃')],
+          [t('*되돌아옴* (빨강) — 사유', '*Sent back* (red) — reason'),
+           t('본사가 고칠 곳을 적어 돌려보냈습니다. *20초* 동안 떠 있습니다', 'Head office sent it back with what to fix. Stays for *20 seconds*'),
+           t('그 돈사 팀장', 'The team lead of that house'), 'you'],
+          [t('*확정됨* (초록)', '*Confirmed* (green)'),
+           t('본사가 확정했습니다 — 다음 날 일보를 시작할 수 있습니다', 'Head office confirmed — the next day can start'),
+           t('그 돈사 팀장 · 다른 본사 직원', 'The team lead of that house · other head-office staff')],
+          [t('*확정 해제* (주황)', '*Unconfirmed* (orange)'),
+           t('확정이 풀렸습니다 — 곧 되돌아올 수 있습니다', 'Confirmation was undone — it may come back to you'),
+           t('그 돈사 팀장 · 다른 본사 직원', 'The team lead of that house · other head-office staff')],
+          [t('*일보 시작* · *폐사 2두* (파랑)', '*Report started* · *2 deaths* (blue)'),
+           t('팀장이 일보를 시작했거나 폐사·도태를 넣었습니다', 'A team lead started a report or recorded deaths/culls'),
+           t('본사 (전 돈사 담당)', 'Head office (all houses)')],
+        ],
+      } },
+      { ul: [
+        t('알림을 *누르면 그 일보로* 갑니다. *8초* 뒤 저절로 사라지고, *×* 로 바로 닫을 수 있습니다. 한꺼번에 4개까지 쌓입니다.',
+          '*Click a notice to open that report.* It disappears after *8 seconds*, or close it with *×*. Up to 4 stack at once.'),
+        t('*내가 한 일*은 알림이 뜨지 않습니다 — 내 화면이 이미 보여 주기 때문입니다.',
+          'Nothing pops up for *your own* actions — your screen already shows them.'),
+        t('다른 사람 돈사의 알림은 오지 않습니다. 볼 수 있는 돈사만 옵니다.',
+          'You never get notices for houses you cannot see.'),
+      ] },
+      { h3: t('저절로 바뀌는 곳', 'What updates by itself') },
+      { ul: [
+        t('*제출 현황* — 상태·입력 줄 수·폐사·도태 칸', '*The status board* — status, rows entered, deaths and culls'),
+        t('위쪽 *돈사 이름 옆 점* (제출·확정 표시)', 'The *dots next to house names* at the top (submitted / confirmed)'),
+        t('*보고 있는 일보* — 입력 중이면 *치던 칸은 그대로* 두고 폐사·도태·당일두수·상태만 바꿉니다. 입력한 숫자가 덮이는 일은 없습니다.',
+          '*The report you are looking at* — while you are typing, *your cells are left alone*; only deaths, culls, closing counts and status change. What you typed is never overwritten.'),
+      ] },
+      { h3: t('인터넷이 잠깐 끊겼다면', 'If the connection drops for a while') },
+      { p: t('끊긴 동안 온 알림은 뜨지 않습니다. 대신 *다시 연결되는 순간*과 *다른 창을 보다가 이 창으로 돌아오는 순간* 화면을 한 번 새로 받습니다. 그래도 이상해 보이면 *F5* 를 누릅니다.',
+             'Notices sent while you were offline are not shown. Instead the screen reloads *the moment the connection returns* and *when you come back to this window*. If anything still looks wrong, press *F5*.') },
+      { warn: t('알림 연결이 열려 있어도 *로그인은 유지되지 않습니다.* 아무것도 누르지 않으면 팀장 *15분*, 본사 *30분* 뒤 로그아웃됩니다 — 자리를 비운 사이 다른 사람이 쓰지 못하게 하려는 것입니다.',
+                'An open notice connection does *not keep you logged in.* With no activity you are logged out after *15 minutes* (team leads) or *30 minutes* (head office) — so nobody else can use your account while you are away.') },
+    ],
+  },
+
   /* ── 문제 ─────────────────────────────────────────────────────── */
   {
     id: 'trouble',

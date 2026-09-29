@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, ApiError, formatDate, STATUS_LABEL } from '../api.js';
 import { DeathLog } from '../components/DeathLog.jsx';
 import { DateNav } from '../components/DateNav.jsx';
+import { on as onLive } from '../live.js';
 
 const TONE = {
   confirmed: 'confirmed', locked: 'locked',
@@ -22,6 +23,11 @@ export function HouseStatus({ date }) {
   const [deaths, setDeaths] = useState([]);     // 그 날 폐사·도태 — 돈사별로 센다
   const [logOpen, setLogOpen] = useState(false);
 
+  const [tick, setTick] = useState(0);        // 알림이 오면 올려서 다시 받는다
+  useEffect(() => onLive((type, ev) => {
+    if (type === 'resync' || (type === 'change' && ev.date === date)) setTick((t) => t + 1);
+  }), [date]);
+
   useEffect(() => {
     let live = true;
     api.status(date)
@@ -29,7 +35,7 @@ export function HouseStatus({ date }) {
       .catch((e) => { if (live) setErr(e instanceof ApiError ? e.message : '불러오지 못했습니다.'); });
     api.deathLog(date).then((r) => { if (live) setDeaths(r.items); }).catch(() => {});
     return () => { live = false; };
-  }, [date]);
+  }, [date, tick]);
 
   if (err) return <div className="center">{err}</div>;
   if (!houses) return <div className="center">불러오는 중…</div>;
