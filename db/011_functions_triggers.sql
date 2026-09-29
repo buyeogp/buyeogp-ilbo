@@ -126,10 +126,13 @@ BEGIN
    ORDER BY report_date DESC
    LIMIT 1;
 
+  -- 「어제」가 아니라 「바로 앞 일보」다. 빈 날이 있으면 그 앞 일보를 본다.
+  -- 현장이 읽는 문구라 무엇을 하면 풀리는지까지 말한다
   IF FOUND AND r.status NOT IN ('confirmed','locked') THEN
     RAISE EXCEPTION
-      'V5: 전일(%) 일보가 아직 확정되지 않았습니다. 상태=% — 오류는 하루를 넘지 못한다(P8)',
-      r.report_date, r.status
+      'V5: 앞 일보(%)가 아직 확정되지 않았습니다(%). 그 일보를 먼저 제출·확정해야 다음 날짜를 시작할 수 있습니다.',
+      r.report_date,
+      CASE r.status WHEN 'draft' THEN '작성 중' WHEN 'submitted' THEN '제출됨 · 확정 대기' ELSE r.status::text END
       USING ERRCODE = 'integrity_constraint_violation';
   END IF;
   RETURN NEW;

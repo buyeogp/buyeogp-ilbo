@@ -28,6 +28,7 @@ BEGIN;
 \ir 020_auth_grants.sql
 \ir 021_admin_grants.sql
 \ir 022_timezone.sql
+\ir 023_v5_message.sql
 
 COMMIT;
 
