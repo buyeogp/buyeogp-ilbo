@@ -161,6 +161,10 @@ export const SECTIONS = [
         [['↑', '↓', '←', '→'], t('칸 옮기기', 'Move between cells')],
         [['Ctrl', 'Enter'], t('*이 줄은 변동 없음* — 빈칸을 0 으로 채우고 다음 줄로',
                               '*No change in this row* — fills the empty cells with 0 and moves down')],
+      ] },
+      { p: t('숫자를 하나라도 넣은 줄은 *다른 줄로 옮기면 나머지 빈칸이 저절로 0* 이 됩니다. 손대지 않은 줄이 여러 개 남았으면 오른쪽 아래 *「빈칸 0으로 채우기」* 로 한꺼번에 채울 수 있습니다 — 한꺼번에 채운 줄 수는 *본사 화면에 남습니다.* 정말 변동이 없었던 줄만 남았을 때 씁니다.',
+             'In a row where you typed any number, *moving to another row turns the remaining empty cells into 0*. If several untouched rows remain, *"빈칸 0으로 채우기"* at the bottom right fills them all — the number of rows filled this way *is shown to head office.* Use it only when the remaining rows really had no change.') },
+      { keys: [
         [['Ctrl', 'S'], t('지금 바로 저장 (안 눌러도 저절로 됩니다)',
                           'Save right now (it saves by itself anyway)')],
       ] },
