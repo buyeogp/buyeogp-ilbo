@@ -148,5 +148,15 @@ col.w-txt  { width: 40mm; }
   color: #444;
   font-variant-numeric: tabular-nums;
 }
+.preview-bar {
+  border: 1.2pt solid #b33; color: #b33; padding: 2mm 3mm; margin-bottom: 3mm;
+  font-size: 9pt; text-align: center;
+}
+/* 미리보기 종이가 공식본으로 쓰이지 않게 — 한 장 전체에 옅게 */
+.preview-mark {
+  position: fixed; top: 45%; left: 0; right: 0; text-align: center;
+  transform: rotate(-18deg); font-size: 56pt; font-weight: 700;
+  color: rgba(180, 40, 40, .10); pointer-events: none; z-index: 0;
+}
 .foot .hash { font-family: "Consolas", monospace; letter-spacing: -0.02em; }
 `;

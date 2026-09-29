@@ -260,9 +260,32 @@ try {
   const hqMe = await call('GET', '/api/auth/me');
   ck('본사 세션은 30분', hqMe.body?.session != null);
 
+  // 일보 PDF (§6.5) — 확정 전은 미리보기, 확정 후는 공식 출력 + 출력 기록
+  const pdfGet = async () => {
+    const r = await fetch(`${base}/api/reports/${reportId}/pdf`, { headers: { cookie } });
+    const buf = Buffer.from(await r.arrayBuffer());
+    return { status: r.status, type: r.headers.get('content-type'), buf,
+             name: decodeURIComponent(r.headers.get('content-disposition') ?? ''),
+             hash: r.headers.get('x-content-hash') };
+  };
+  const pv = await pdfGet();
+  ck('확정 전 PDF 는 미리보기로 나온다', pv.status === 200 && pv.type === 'application/pdf'
+    && pv.buf.subarray(0, 5).toString() === '%PDF-' && pv.name.includes('미리보기'),
+    `실제 ${pv.status} ${pv.type} ${pv.name}`);
+  const notPrinted = (await admin.query('select printed_at from app.daily_report where id=$1', [reportId])).rows[0];
+  ck('미리보기는 출력 기록을 남기지 않는다', notPrinted?.printed_at == null);
+
   const conf = await call('POST', `/api/reports/${reportId}/confirm`);
   ck('본사는 확정 가능', conf.status === 200 && conf.body?.status === 'confirmed',
     JSON.stringify(conf.body));
+
+  const official = await pdfGet();
+  ck('확정 후 PDF 는 공식 출력', official.status === 200 && !official.name.includes('미리보기'),
+    `실제 ${official.status} ${official.name}`);
+  ck('같은 숫자면 무결성 값이 같다 (미리보기 = 공식)', official.hash === pv.hash,
+    `${pv.hash?.slice(0, 12)} / ${official.hash?.slice(0, 12)}`);
+  const printed = (await admin.query('select printed_at from app.daily_report where id=$1', [reportId])).rows[0];
+  ck('공식 출력은 출력 기록을 남긴다', printed?.printed_at != null);
 
   const status = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
   ck('본사는 전 돈사 현황을 본다', status.body?.houses?.length === 12,

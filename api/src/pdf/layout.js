@@ -257,7 +257,10 @@ export function renderDailyReport(rp) {
 <html lang="ko"><head><meta charset="utf-8">
 <title>${esc(rp.house.name)} 일지 ${esc(rp.reportDate)}</title>
 <style>${styles}</style></head>
-<body><div class="sheet">
+<body>${rp.preview ? `
+<div class="preview-mark">확정 전 미리보기</div>` : ''}<div class="sheet">
+${rp.preview ? `
+  <div class="preview-bar">확정 전 미리보기 — <b>공식 출력물이 아닙니다.</b> 본사가 확정한 뒤 다시 출력하십시오.</div>` : ''}
 
   <div class="hd">
     <div>

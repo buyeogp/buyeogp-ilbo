@@ -50,6 +50,23 @@ export async function putPhoto(body, type, prefix) {
   return key;
 }
 
+/**
+ * 아무 파일이나 버킷에 넣는다 — 일보 PDF 3년 보관용 (§6.5, 버킷 daily-report-pdf).
+ * 같은 키로 다시 넣으면 덮어쓴다. 내용 해시를 키에 넣으므로 같은 내용이면 같은 파일이다.
+ * @returns {Promise<boolean>} 저장했나 — 운영에서 키가 없으면 false (출력은 막지 않는다)
+ */
+export async function putFile(bucket, key, body, type) {
+  if (P.configured) {
+    await client().send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: type }));
+    return true;
+  }
+  if (config.env === 'production') return false;
+  const file = path.join(ROOT, 'api', 'out', bucket, key);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, body);
+  return true;
+}
+
 /** @returns {Promise<{body: Buffer|ReadableStream, type: string}>} */
 export async function getPhoto(key) {
   const ext = key.split('.').pop();

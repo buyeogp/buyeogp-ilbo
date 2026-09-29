@@ -90,9 +90,9 @@ export const TG_SECTIONS = [
       { table: {
         head: [t('기능', 'Feature'), t('테스트 중에는', 'During the test')],
         rows: [
-          [t('*일보 PDF 출력·인쇄* 단추', '*Print / PDF download* of the report'),
-           t('없습니다. 종이 일보는 *지금처럼 엑셀에서* 출력하십시오. 테스트 기간에 만들어 정식 가동 전에 붙입니다.',
-             'Not yet. Print the paper report *from Excel as now*. It will be built during the test and added before go-live.'), 'you'],
+          [t('일보 PDF 의 *일부 칸*', 'Some parts of the PDF report'),
+           t('PDF 출력은 됩니다. 다만 *분만사 하위 표*(분만·이유·도폐사 현황), 종부·임신사의 *사고 내역·종부* 칸, *백신 기록*은 아직 비어 나옵니다. 종부·임신사는 엑셀처럼 네 돈사를 한 장에 싣지 않고 *돈사마다 한 장*입니다.',
+             'PDF printing works. But the *farrowing sub-tables*, the *incidents and matings* columns of the breeding houses, and the *vaccination log* are still blank. Breeding houses print *one page per house*, not four on one page like Excel.'), 'you'],
           [t('*제출·확정한 일보 고치기* (정정전표)', '*Correcting a submitted/confirmed report* (correction voucher)'),
            t('없습니다. 제출 뒤 틀린 것을 찾으면 *알려 주십시오.* 테스트 기간에는 개발자가 정리합니다.',
              'Not yet. If you find a mistake after submitting, *tell us.* During the test the developer fixes it.'), 'you'],
@@ -224,7 +224,11 @@ export const TG_SECTIONS = [
           'A row with a red cell *is not saved.* It saves as soon as you fix it. Watch the save state at the bottom right.'),
       ] },
 
-      { h3: t('6. 다 넣었으면 「제출」', '6. When everything is in, press "제출" (Submit)') },
+      { h3: t('6. 제출 전에 PDF 로 엑셀과 맞춰 보기', '6. Before submitting, compare the PDF with Excel') },
+      { p: t('오른쪽 아래 *「PDF 미리보기」* 를 누르면 인쇄 모양이 새 탭에 열립니다. 확정 전이라 *「확정 전 미리보기」* 표시가 찍힙니다 — 공식 종이가 아닙니다. 엑셀 일보와 나란히 놓고 숫자가 같은지 보십시오.',
+             'Press *"PDF 미리보기"* at the bottom right to open the print layout in a new tab. It carries a *"확정 전 미리보기"* (preview) mark — it is not the official paper. Put it next to the Excel report and check the numbers.') },
+
+      { h3: t('7. 다 넣었으면 「제출」', '7. When everything is in, press "제출" (Submit)') },
       { p: t('빨간 선과 빨간 칸이 모두 없어지면 오른쪽 아래 *제출*이 눌립니다.',
              'When all red lines and red cells are gone, *제출* at the bottom right can be pressed.') },
       { warn: t('*제출하면 팀장은 더 고칠 수 없습니다.* 제출 전에 엑셀과 한 번 더 맞춰 보십시오. 제출 뒤에 틀린 것을 찾으면 *고치지 말고 알려 주십시오* — 어느 돈사·날짜·줄인지만 적어 주시면 됩니다.',
@@ -238,6 +242,7 @@ export const TG_SECTIONS = [
           'With the same numbers, are *the closing counts and totals the same as Excel?*'),
         t('*전일두수*가 어제 엑셀의 당일두수와 같습니까? (아래 「과거 엑셀 자료」를 먼저 읽어 주십시오)',
           'Is the *opening count* the same as yesterday’s Excel closing? (Read "Past Excel data" below first)'),
+        t('*PDF 미리보기*의 숫자와 모양이 엑셀 일보와 같습니까?', 'Do the numbers and layout of the *PDF preview* match the Excel report?'),
         t('엑셀보다 *느리거나 불편한 곳*, 뜻을 모르겠는 낱말이 있습니까?',
           'Is anything *slower or harder* than Excel, or any word you do not understand?'),
       ] },
@@ -273,6 +278,9 @@ export const TG_SECTIONS = [
       { h3: t('3. 폐사·도태와 사진 확인', '3. Check deaths, culls and photos') },
       { p: t('제출 현황 오른쪽 위 *폐사·도태 일지*를 누르면 그 날 전 돈사의 폐사·도태가 *사진과 함께* 한 장에 나옵니다. 사진을 누르면 크게 보입니다. 표의 *주황 ●* 은 사진 보완이 남은 돈사입니다.',
              'Press *폐사·도태 일지* at the top right of the status board to see every house’s deaths and culls for the day *with photos* on one page. Click a photo to enlarge it. An *orange ●* marks a house still missing a photo.') },
+      { h3: t('4. 확정한 일보 PDF 출력', '4. Printing the confirmed report') },
+      { p: t('확정하면 오른쪽 아래 단추가 *「PDF 출력」* 으로 바뀝니다. 누르면 새 탭에 열리고, 거기서 인쇄합니다. 출력하면 제출 현황의 *출력* 칸에 표시되고, 종이 맨 아래에 *무결성 값*이 찍힙니다 — 같은 숫자면 몇 번을 뽑아도 같은 값입니다. 출력물 모양이 엑셀 일보와 다른 곳이 있으면 알려 주십시오.',
+             'Once confirmed, the button becomes *"PDF 출력"*. It opens in a new tab; print from there. Printing marks the *출력* column on the status board, and an *integrity value* is printed at the bottom — the same numbers always give the same value. Tell us where the layout differs from the Excel report.') },
       { warn: t('*매일 확정해 주십시오.* 확정이 빠지면 그 돈사는 다음 날 일보를 시작할 수 없습니다.',
                 '*Please confirm every day.* If a house is not confirmed, it cannot start the next day.') },
       { p: t('잘못 확정했으면 *확정 해제*로 되돌릴 수 있습니다. 숫자가 틀린 일보를 찾으면 확정하지 말고 알려 주십시오 — 테스트 기간에는 개발자가 정리합니다.',
