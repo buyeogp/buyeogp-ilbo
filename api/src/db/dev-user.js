@@ -52,11 +52,38 @@ const client = new pg.Client({
 await client.connect();
 
 if (drop) {
-  const r = await client.query(
-    `DELETE FROM sec.app_user WHERE login_id LIKE 'dev.%' RETURNING login_id`);
-  console.log(r.rowCount ? `삭제: ${r.rows.map((x) => x.login_id).join(', ')}` : '지울 것이 없습니다.');
+  // 시험 계정으로 눌러 본 일보가 남아 있으면 계정을 지울 수 없다 (작성자 FK).
+  // 작성 중(draft)인 것만 함께 지운다. 제출·확정까지 간 것은 기록이라 멈추고 알린다.
+  await client.query('BEGIN');
+  try {
+    const ids = (await client.query(
+      `SELECT id FROM sec.app_user WHERE login_id LIKE 'dev.%'`)).rows.map((r) => r.id);
+    const kept = (await client.query(
+      `SELECT h.name, r.report_date::text AS d, r.status
+         FROM app.daily_report r JOIN app.house h ON h.id = r.house_id
+        WHERE r.status <> 'draft'
+          AND (r.author_id = ANY($1) OR r.confirmed_by = ANY($1) OR r.field_writer_id = ANY($1))`,
+      [ids])).rows;
+    if (kept.length) {
+      console.error('시험 계정이 제출·확정한 일보가 있어 멈춥니다 — 정정 절차로 처리하십시오:');
+      for (const k of kept) console.error(`  ${k.name} ${k.d} (${k.status})`);
+      throw new Error('지우지 않았습니다');
+    }
+    const drafts = await client.query(
+      `DELETE FROM app.daily_report WHERE status = 'draft' AND author_id = ANY($1)
+       RETURNING report_date::text AS d`, [ids]);
+    const r = await client.query(
+      `DELETE FROM sec.app_user WHERE id = ANY($1) RETURNING login_id`, [ids]);
+    await client.query('COMMIT');
+    if (drafts.rowCount) console.log(`작성 중 일보 ${drafts.rowCount}건 삭제 (${drafts.rows.map((x) => x.d).join(', ')})`);
+    console.log(r.rowCount ? `삭제: ${r.rows.map((x) => x.login_id).join(', ')}` : '지울 것이 없습니다.');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('실패 — 롤백했습니다.', e.message);
+    process.exitCode = 1;
+  }
   await client.end();
-  process.exit(0);
+  process.exit();
 }
 
 const farm = (await client.query(`SELECT id FROM app.farm WHERE code='BUYEO'`)).rows[0];
@@ -65,8 +92,13 @@ const issued = [];
 await client.query('BEGIN');
 try {
   for (const p of PEOPLE) {
-    await client.query('DELETE FROM sec.app_user WHERE login_id = $1', [p.loginId]);
     const pw = generatePassword();
+    // 이미 있으면 비밀번호만 새로 준다. 지우고 다시 만들면 그 계정으로 눌러 본
+    // 일보(작성자 FK) 때문에 실패하고, 담당 이력도 사라진다
+    const had = await client.query(
+      `UPDATE sec.app_user SET password_hash = $2, status = 'active' WHERE login_id = $1 RETURNING id`,
+      [p.loginId, await hashPassword(pw)]);
+    if (had.rowCount) { issued.push({ ...p, password: pw }); continue; }
     const id = (await client.query(
       `INSERT INTO sec.app_user (login_id, name, password_hash, status, nationality, mfa_required)
        VALUES ($1,$2,$3,'active','KR',false) RETURNING id`,
