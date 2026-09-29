@@ -257,6 +257,19 @@ try {
       where user_id=$1 and house_id=$2`, [lead, bunman])).rows[0];
   ck('해제해도 줄이 남는다 (이력)', hist?.t === '2031-05-31', `실제 ${hist?.t}`);
 
+  // 잘못 누른 칸을 바로 다시 누르는 경우 — 오늘 넣고 오늘 뺀다.
+  // 끝낼 날(어제)이 시작(오늘)보다 앞서 기간을 닫을 수 없으니 지정을 취소한다
+  {
+    const other = (await admin.query(
+      `select id from app.house where code not in ('JADON','BUNMAN1') order by seq limit 1`)).rows[0].id;
+    await call('POST', '/api/admin/scopes', { userId: lead, houseId: other });
+    const undo = await call('POST', '/api/admin/scopes/end', { userId: lead, houseId: other });
+    ck('오늘 넣은 담당을 오늘 빼면 취소된다', undo.status === 200, JSON.stringify(undo.body)?.slice(0, 80));
+    const left = (await admin.query(
+      `select count(*)::int n from sec.user_scope where user_id=$1 and house_id=$2`, [lead, other])).rows[0].n;
+    ck('취소하면 그 줄은 남지 않는다', left === 0, `실제 ${left}`);
+  }
+
   // 계정 만들기
   const made = await call('POST', '/api/admin/users',
     { loginId: 'smoke.new', name: '새 팀장', roles: ['team_lead'] });

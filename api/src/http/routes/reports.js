@@ -32,7 +32,7 @@ reportsRouter.get('/status', wrap(async (req, res) => {
        FROM app.house h
        LEFT JOIN app.daily_report dr ON dr.house_id = h.id AND dr.report_date = $1::date
       WHERE h.active
-      ORDER BY h.seq`, [date ?? new Date().toISOString().slice(0, 10)]));
+      ORDER BY h.seq`, [date ?? new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })]));
 
   // 볼 수 있는 돈사만. 전 돈사 등급이면 전부, 팀장이면 담당만.
   // RLS 는 app.house 를 막지 않으므로(마스터다) 여기서 걸러야 한다 — §6.7 전건 검사.

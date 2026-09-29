@@ -33,7 +33,7 @@ const opt = (name) => {
 };
 
 const DRY = flag('dry');
-const FROM = opt('from') ?? new Date().toLocaleDateString('sv-SE');  // YYYY-MM-DD
+const FROM = opt('from') ?? new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });  // YYYY-MM-DD
 if (!/^\d{4}-\d{2}-\d{2}$/.test(FROM)) {
   console.error(`--from 날짜 형식이 올바르지 않습니다: ${FROM}`);
   process.exit(1);

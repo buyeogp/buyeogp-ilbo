@@ -515,7 +515,7 @@ td.pick { padding: 0; }
 .chip small { display: block; font-size: 10px; font-weight: 500; margin-top: 2px; color: var(--ink-2); }
 /* 저장 중인 칸 · 방금 바뀐 칸 — 어디를 눌렀는지 눈으로 따라갈 수 있게 */
 .chip.pending { background: var(--accent-w); color: var(--ink-3); }
-.chip.flash { animation: chip-flash 1.8s ease-out; }
+.chip.flash { animation: chip-flash 1.2s ease-out; }
 @keyframes chip-flash {
   0%   { background: var(--accent); color: #fff; }
   100% { background: var(--accent-w); }
@@ -558,6 +558,8 @@ td.pick.asking .chip { box-shadow: inset 0 0 0 2px var(--crit); }
 .cell-ask.done { border-color: var(--accent); pointer-events: none; animation: ask-in .15s ease-out; }
 .cell-ask.done::before { border-color: var(--accent); }
 .cell-ask.done .when { margin-bottom: 0; }
+.cell-ask.fail { pointer-events: none; animation: ask-in .15s ease-out; }
+.cell-ask.fail p { margin: 0; color: var(--crit); }
 @keyframes ask-in { from { opacity: 0; } to { opacity: 1; } }
 .cell-ask p { margin: 0 0 4px; }
 .cell-ask .when { color: var(--ink-3); font-size: 11.5px; margin-bottom: 8px; }

@@ -50,7 +50,8 @@ function chromePath() {
 export async function renderPdf(report, { launch } = {}) {
   const rp = { ...report };
   rp.contentHash ??= contentHash(rp);
-  rp.printedAt ??= new Date().toISOString().replace('T', ' ').slice(0, 16);
+  // 출력 시각은 한국 시각이다. toISOString 은 UTC 라 9시간 늦게 찍혔다
+  rp.printedAt ??= new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);
 
   const html = renderDailyReport(rp);
 

@@ -30,7 +30,7 @@ export function Admin({ me }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const run = useCallback(async (fn, okMsg) => {
+  const run = useCallback(async (fn, okMsg, onError) => {
     if (busy) return;
     setBusy(true); setErr(null); setMsg(null);
     try {
@@ -40,7 +40,9 @@ export function Admin({ me }) {
       if (r?.warning) setErr(r.warning);
       return r;
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : '처리하지 못했습니다.');
+      const m = e instanceof ApiError ? e.message : '처리하지 못했습니다.';
+      setErr(m);
+      onError?.(m);          // 누른 자리에서도 알린다 — 위쪽 줄만으로는 놓친다
     } finally { setBusy(false); }
   }, [busy, load]);
 
@@ -134,15 +136,20 @@ function ScopeGrid({ data, from, run, busy }) {
     setAsk(null);
     setPending(key);
     const r = await run(() => (has ? api.scopeEnd(user.id, house.id, from)
-                                   : api.scopeAdd(user.id, house.id, from)));
+                                   : api.scopeAdd(user.id, house.id, from)),
+                        null,
+                        (m) => {
+                          setDone({ key, error: m });
+                          setTimeout(() => setDone((d) => (d?.key === key ? null : d)), 4000);
+                        });
     setPending(null);
     if (r) {
       // 누른 자리에서 결과를 알려 준다. 모달은 닫기를 눌러야 해서 여러 칸을 넣을 때 흐름이 끊긴다 —
       // 저절로 사라지는 말풍선으로 둔다. 같은 내용은 위쪽 알림 줄에도 남는다
       setFlash(key);
       setDone({ key, add: !has, user: user.name, house: house.name });
-      setTimeout(() => setFlash((f) => (f === key ? null : f)), 1800);
-      setTimeout(() => setDone((d) => (d?.key === key ? null : d)), 2800);
+      setTimeout(() => setFlash((f) => (f === key ? null : f)), 1200);
+      setTimeout(() => setDone((d) => (d?.key === key ? null : d)), 1500);
     }
   };
 
@@ -204,12 +211,17 @@ function ScopeGrid({ data, from, run, busy }) {
                           {soon && <small>{md(s.validFrom)}부터</small>}
                         </button>
                         {done?.key === key && !ask && (
-                          <div className={up ? 'cell-ask done up' : 'cell-ask done'} role="status">
-                            <p>
-                              <b>{done.house}</b> 이(가) <b>{done.user}</b> 님
-                              {done.add ? ' 담당으로 들어갔습니다.' : ' 담당에서 빠졌습니다.'}
-                            </p>
-                            <p className="when">{later ? `${from} 부터` : '오늘부터'}</p>
+                          <div className={['cell-ask', done.error ? 'fail' : 'done', up && 'up'].filter(Boolean).join(' ')}
+                               role={done.error ? 'alert' : 'status'}>
+                            {done.error ? <p>{done.error}</p> : (
+                              <>
+                                <p>
+                                  <b>{done.house}</b> 이(가) <b>{done.user}</b> 님
+                                  {done.add ? ' 담당으로 들어갔습니다.' : ' 담당에서 빠졌습니다.'}
+                                </p>
+                                <p className="when">{later ? `${from} 부터` : '오늘부터'}</p>
+                              </>
+                            )}
                           </div>
                         )}
                         {ask === key && (

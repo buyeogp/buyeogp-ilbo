@@ -19,7 +19,7 @@ export const adminRouter = Router();
 adminRouter.use(requireAuth);
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const today = () => new Date().toLocaleDateString('sv-SE');
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 
 /** 본사만 할 수 있는 일 — 역할 부여가 여기 들어간다 */
 const HQ = ['hq_staff', 'hq_manager'];
@@ -184,11 +184,23 @@ adminRouter.post('/scopes/end', wrap(async (req, res) => {
     if (!open.length) {
       throw new HttpError(409, 'not_assigned', `${u.name} 님은 ${h.name} 담당이 아닙니다.`);
     }
+    let cancelled = false;
     for (const row of open) {
+      // 끝내는 날(from) 전에 시작하지 않은 담당 — 오늘 잘못 넣은 것을 바로 빼거나,
+      // 미래로 넣어 둔 것을 거두는 경우다. 끝낼 날짜(from - 1)가 시작보다 앞서므로
+      // 기간을 닫을 수 없다. 지정 자체를 취소한다. 감사로그에 무엇을 지웠는지 남는다.
       if (row.f >= from) {
-        throw new HttpError(422, 'bad_date',
-          `${u.name} 님의 ${h.name} 담당은 ${row.f} 에 시작했습니다. `
-          + `그보다 앞선 날짜로는 끝낼 수 없습니다.`);
+        // 과거 날짜로 거슬러 끝내는 것은 여전히 막는다 — 지나간 담당 이력을 지우게 된다
+        if (from < today()) {
+          throw new HttpError(422, 'bad_date',
+            `${u.name} 님의 ${h.name} 담당은 ${row.f} 에 시작했습니다. `
+            + `그보다 앞선 날짜로는 끝낼 수 없습니다.`);
+        }
+        await q('DELETE FROM sec.user_scope WHERE id = $1', [row.id]);
+        await q.log('DELETE', 'sec.user_scope', row.id,
+          `${u.name} ← ${h.name} 담당 지정 취소 (${row.f} 시작 예정·당일)`);
+        cancelled = true;
+        continue;
       }
       await q(`UPDATE sec.user_scope SET valid_to = ($2::date - 1) WHERE id = $1`,
         [row.id, from]);
@@ -200,7 +212,9 @@ adminRouter.post('/scopes/end', wrap(async (req, res) => {
     const left = await q.one(
       `SELECT lead_count FROM sec.v_house_owner WHERE house_id = $1`, [houseId]);
     return {
-      message: `${u.name} 님이 ${from} 부터 ${h.name} 담당에서 빠집니다.`,
+      message: cancelled
+        ? `${u.name} 님의 ${h.name} 담당 지정을 취소했습니다.`
+        : `${u.name} 님이 ${from} 부터 ${h.name} 담당에서 빠집니다.`,
       warning: (left?.lead_count ?? 0) <= 1
         ? `${h.name} 에 팀장이 없어집니다. 다른 사람을 지정해 주십시오.` : null,
     };
