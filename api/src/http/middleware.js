@@ -29,9 +29,18 @@ export async function attachUser(req, _res, next) {
   } catch (e) { next(e); }
 }
 
+// 비밀번호를 바꾸기 전에도 쓸 수 있는 곳 — 나는 누구인가 · 바꾸기 · 나가기
+const BEFORE_CHANGE = ['/api/auth/me', '/api/auth/password', '/api/auth/logout'];
+
 export function requireAuth(req, _res, next) {
   if (!req.user) {
     return next(new HttpError(401, 'unauthenticated', '로그인이 필요합니다.'));
+  }
+  // 발급받은 비밀번호 그대로면 새 비밀번호부터 정하게 한다 (027). 화면도 막지만 서버가 막는다
+  if (req.user.mustChangePassword
+      && !BEFORE_CHANGE.includes((req.originalUrl || '').split('?')[0])) {
+    return next(new HttpError(403, 'must_change_password',
+      '처음 받은 비밀번호입니다. 새 비밀번호를 정한 뒤에 쓸 수 있습니다.'));
   }
   next();
 }

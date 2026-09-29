@@ -342,7 +342,9 @@ function Users({ data, me, run, busy, setSecret }) {
                               }}>예</button>
                     </span>
                   ) : (
-                    <>
+                    // 본사가 아닌 관리자는 현장 계정만 손댄다 — 막는 것은 서버다(SoD-1)
+                    !canRoles && u.roles.some((r) => !['worker', 'team_lead', 'farm_manager'].includes(r))
+                      ? <span className="hint">본사·관리자 계정 — 본사만 바꿀 수 있습니다</span> : <>
                       <button className="btn small" disabled={busy}
                               onClick={() => setAsk({ id: u.id, kind: 'pw' })}>
                         비밀번호 재발급
@@ -474,7 +476,8 @@ function Secret({ info, onClose }) {
         <p className="pw">{info.password}</p>
         <p className="hint">
           이 화면에서만 보입니다. 창을 닫으면 다시 볼 수 없고, 다시 만들어야 합니다.
-          본인에게 전달하고 바로 바꾸게 하십시오.
+          <b>본인에게 직접</b> 전달하십시오 (단톡방·메신저 말고). 그 사람이 이 비밀번호로 처음 들어오면
+          <b>새 비밀번호를 정해야</b> 다음 화면으로 갑니다 — 그 뒤로는 발급한 사람도 모릅니다.
         </p>
         {info.note && <p className="hint" style={{ color: 'var(--warn)' }}>{info.note}</p>}
       </div>

@@ -42,6 +42,7 @@ export const api = {
   login: (loginId, password) => call('POST', '/auth/login', { loginId, password }),
   logout: () => call('POST', '/auth/logout'),
   me: () => call('GET', '/auth/me'),
+  changePassword: (current, next) => call('POST', '/auth/password', { current, next }),
 
   status: (date) => call('GET', `/reports/status?date=${date}`),
   report: (houseId, date) => call('GET', `/reports/${houseId}/${date}`),

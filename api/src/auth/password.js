@@ -51,3 +51,26 @@ export function generatePassword(len = 14) {
   for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];
   return out;
 }
+
+/**
+ * 본인이 정하는 비밀번호의 규칙. 현장에서 쓸 수 있을 만큼만 — 너무 까다로우면
+ * 결국 종이에 적어 모니터에 붙인다.
+ * @returns {string|null} 어긋나면 그 이유(화면에 그대로 보인다), 괜찮으면 null
+ */
+const COMMON = new Set([
+  '12345678', '123456789', '1234567890', '87654321', '11111111', '00000000',
+  'password', 'password1', 'qwer1234', 'qwerty12', '1q2w3e4r', '1q2w3e4r5t', 'asdf1234',
+  'abcd1234', 'a1234567', 'zxcv1234', '1234qwer', 'iloveyou', 'buyeogp1', 'buyeogp123',
+]);
+export function passwordProblem(plain, loginId) {
+  const p = String(plain ?? '');
+  if (p.length < 8) return '비밀번호는 8자 이상이어야 합니다.';
+  if (p.length > 64) return '비밀번호는 64자 이하로 해 주십시오.';
+  if (/^\d+$/.test(p)) return '숫자만으로는 만들 수 없습니다. 영문자를 섞어 주십시오.';
+  if (/(.)\1{3,}/.test(p)) return '같은 글자를 4번 넘게 잇달아 쓸 수 없습니다.';
+  const lower = p.toLowerCase();
+  const id = String(loginId ?? '').toLowerCase();
+  if (id && (lower.includes(id) || id.includes(lower))) return '아이디가 들어간 비밀번호는 쓸 수 없습니다.';
+  if (COMMON.has(lower)) return '너무 흔한 비밀번호입니다. 다른 것으로 정해 주십시오.';
+  return null;
+}

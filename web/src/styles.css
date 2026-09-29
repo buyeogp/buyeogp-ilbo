@@ -1134,3 +1134,14 @@ td.deaths.due::after {
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 @media print { .toasts { display: none; } }
+
+/* ── 비밀번호 바꾸기 ─────────────────────────────────────────────── */
+.login.in-overlay { min-height: 0; background: none; padding: 0; }
+.pw-show { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); margin: -2px 0 8px; }
+.pw-rules { list-style: none; margin: 0 0 12px; padding: 0; font-size: 12.5px; color: var(--ink-3); display: grid; gap: 2px; }
+.pw-rules li.ok { color: var(--ok); }
+.login .okmsg { background: var(--ok-w); color: var(--ok); padding: 8px 10px; border-radius: 4px; font-size: 13px; margin-bottom: 12px; }
+.login .btn.linkish { background: none; border: 0; color: var(--ink-3); margin-top: 6px; }
+.login .btn.linkish:hover { color: var(--ink); text-decoration: underline; }
+button.who { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+button.who:hover { background: var(--surface-2); }

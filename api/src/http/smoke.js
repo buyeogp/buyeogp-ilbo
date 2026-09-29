@@ -476,6 +476,32 @@ try {
     const r = await call('POST', '/api/auth/login',
       { loginId: 'smoke.new', password: made.body.password });
     ck('그 비밀번호로 로그인된다', r.status === 200, `실제 ${r.status}`);
+
+    // 처음 받은 비밀번호 — 새로 정하기 전에는 다른 화면을 못 쓴다 (027)
+    ck('처음 로그인이면 비밀번호 변경을 요구한다', r.body?.user?.mustChangePassword === true);
+    const blocked = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
+    ck('바꾸기 전에는 다른 API 가 막힌다', blocked.status === 403
+      && blocked.body?.error === 'must_change_password', `실제 ${blocked.status}`);
+    const me0 = await call('GET', '/api/auth/me');
+    ck('바꾸기 전에도 /me 는 된다', me0.status === 200 && me0.body?.user?.mustChangePassword === true);
+    const weak = await call('POST', '/api/auth/password', { current: made.body.password, next: '12345678' });
+    ck('숫자만인 비밀번호는 거절', weak.status === 422, `실제 ${weak.status}`);
+    const withId = await call('POST', '/api/auth/password', { current: made.body.password, next: 'smoke.new-2031' });
+    ck('아이디가 들어간 비밀번호는 거절', withId.status === 422, `실제 ${withId.status}`);
+    const wrongCur = await call('POST', '/api/auth/password', { current: 'nope-nope', next: 'Hanul-farm-77' });
+    ck('지금 비밀번호가 틀리면 거절', wrongCur.status === 422 && wrongCur.body?.error === 'wrong_current',
+      `실제 ${wrongCur.status} ${wrongCur.body?.error}`);
+    const good = await call('POST', '/api/auth/password', { current: made.body.password, next: 'Hanul-farm-77' });
+    ck('새 비밀번호로 바꾼다', good.status === 200, JSON.stringify(good.body));
+    const after = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
+    ck('바꾼 뒤에는 다른 API 가 열린다', after.status === 200, `실제 ${after.status}`);
+    cookie = '';
+    const oldPw = await call('POST', '/api/auth/login', { loginId: 'smoke.new', password: made.body.password });
+    ck('옛 비밀번호로는 로그인 안 된다', oldPw.status === 401, `실제 ${oldPw.status}`);
+    const newPw = await call('POST', '/api/auth/login', { loginId: 'smoke.new', password: 'Hanul-farm-77' });
+    ck('새 비밀번호로 로그인된다 (더는 변경 요구 없음)', newPw.status === 200
+      && newPw.body?.user?.mustChangePassword === false, `실제 ${newPw.status}`);
+    made.body.password = 'Hanul-farm-77';        // 아래 「중지하면 로그인 거부」는 새 비밀번호로 본다
     cookie = save;
   }
 
@@ -534,6 +560,18 @@ try {
   const makeHq = await call('POST', '/api/admin/users',
     { loginId: 'smoke.bad', name: '우회 시도', roles: ['hq_staff'] });
   ck('본사 등급 계정도 못 만든다', makeHq.status === 403, `실제 ${makeHq.status}`);
+
+  // 현장 관리자는 현장 계정만 — 본사 계정 비밀번호를 재발급하면 그걸로 본사가 되어 확정한다
+  const hqReset = await call('POST', `/api/admin/users/${hq}/password`);
+  ck('현장 관리자는 본사 계정 비밀번호를 재발급 못 한다 (SoD-1)', hqReset.status === 403,
+    `실제 ${hqReset.status}`);
+  const hqLock = await call('PATCH', `/api/admin/users/${hq}`, { status: 'suspended' });
+  ck('현장 관리자는 본사 계정을 중지 못 한다', hqLock.status === 403, `실제 ${hqLock.status}`);
+  const field = await call('POST', '/api/admin/users',
+    { loginId: 'smoke.bad', name: '현장 작업자', roles: ['worker'] });
+  const fieldReset = await call('POST', `/api/admin/users/${field.body?.userId}/password`);
+  ck('현장 관리자는 현장 계정 비밀번호는 재발급한다', field.status === 201 && fieldReset.status === 200,
+    `실제 ${field.status} / ${fieldReset.status}`);
 
   // 계정 관리 연결로는 일보가 안 보인다 (SoD-3). DB 계층에서 이미 막혀 있으나
   // 라우터가 실수로 업무 질의를 섞었는지 여기서도 한 번 본다.

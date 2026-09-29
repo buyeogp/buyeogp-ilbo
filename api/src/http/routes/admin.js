@@ -42,6 +42,23 @@ adminRouter.use((req, _res, next) => {
   next();
 });
 
+/**
+ * 본사가 아닌 관리자는 **현장 계정만** 손댄다 (비밀번호 재발급 · 중지 · 이름).
+ * 막지 않으면: 현장 관리자가 본사 계정 비밀번호를 재발급 → 그 임시 비밀번호로 본사로 들어가
+ * 자기 팀 일보를 확정할 수 있다 — SoD-1(입력자 ≠ 확정자)이 뚫린다.
+ */
+async function assertCanManage(q, actor, targetId) {
+  if (isHq(actor)) return;
+  const roles = (await q.all(
+    `SELECT role::text AS r FROM sec.user_role
+      WHERE user_id = $1 AND valid_from <= current_date
+        AND (valid_to IS NULL OR valid_to >= current_date)`, [targetId])).map((x) => x.r);
+  if (roles.some((r) => !FIELD_ROLES.includes(r))) {
+    throw new HttpError(403, 'hq_only',
+      '본사·관리자 계정은 본사만 바꿀 수 있습니다. 현장 계정(작업자·팀장·현장관리)만 여기서 바꿀 수 있습니다.');
+  }
+}
+
 const requireHq = (req, _res, next) => {
   if (!isHq(req.user)) {
     return next(new HttpError(403, 'hq_only',
@@ -254,8 +271,9 @@ adminRouter.post('/users', wrap(async (req, res) => {
     if (dup) throw new HttpError(409, 'duplicate', `이미 있는 아이디입니다: ${loginId}`);
 
     const u = await q.one(
-      `INSERT INTO sec.app_user (login_id, name, password_hash, status, nationality, mfa_required)
-       VALUES ($1,$2,$3,'active',$4,$5) RETURNING id`,
+      `INSERT INTO sec.app_user (login_id, name, password_hash, status, nationality, mfa_required,
+                                 must_change_password)
+       VALUES ($1,$2,$3,'active',$4,$5,true) RETURNING id`,
       [loginId, hash ? name : name, hash,
        req.body?.nationality ?? 'KR',
        roles.some((r) => HQ.includes(r))]);
@@ -290,6 +308,7 @@ adminRouter.patch('/users/:id', wrap(async (req, res) => {
     const before = await q.one(
       'SELECT id, login_id, name, status::text FROM sec.app_user WHERE id = $1', [id]);
     if (!before) throw new HttpError(404, 'not_found', '계정을 찾을 수 없습니다.');
+    await assertCanManage(q, req.user, id);
 
     // 자기 계정을 자기가 막아 버리는 사고를 막는다
     if (status && status !== 'active' && id === req.user.userId) {
@@ -328,7 +347,10 @@ adminRouter.post('/users/:id/password', wrap(async (req, res) => {
   const out = await atx(req.user.userId, async (q) => {
     const u = await q.one('SELECT id, login_id, name FROM sec.app_user WHERE id = $1', [id]);
     if (!u) throw new HttpError(404, 'not_found', '계정을 찾을 수 없습니다.');
-    await q('UPDATE sec.app_user SET password_hash = $2 WHERE id = $1', [id, hash]);
+    await assertCanManage(q, req.user, id);
+    // 처음 로그인하면 새 비밀번호를 정하게 한다 — 발급한 사람도 모르게 (027)
+    await q('UPDATE sec.app_user SET password_hash = $2, must_change_password = true WHERE id = $1',
+      [id, hash]);
     // 쓰던 세션은 끊는다. 비밀번호를 바꾼 뜻이 그것이다.
     await q(`UPDATE sec.session SET revoked_at = now(), revoke_reason = '비밀번호 재발급'
               WHERE user_id = $1 AND revoked_at IS NULL`, [id]);

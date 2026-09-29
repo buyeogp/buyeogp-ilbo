@@ -15,6 +15,7 @@ import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
 import { TestGuide } from './pages/TestGuide.jsx';
 import { Toasts } from './components/Toasts.jsx';
+import { ChangePassword } from './pages/ChangePassword.jsx';
 import * as live from './live.js';
 
 const FARM_WIDE = ['farm_manager', 'hq_staff', 'hq_manager', 'auditor'];
@@ -31,6 +32,11 @@ export function App() {
 
   if (me === undefined) return <div className="center">불러오는 중…</div>;
   if (me === null) return <Login onDone={refresh} />;
+  // 관리 화면이 준 비밀번호 그대로면 새 비밀번호부터 (027). 서버도 다른 요청을 막는다
+  if (me.user.mustChangePassword) {
+    return <ChangePassword me={me} forced onDone={refresh}
+                           onSignOut={async () => { try { await api.logout(); } finally { setMe(null); } }} />;
+  }
   return <Shell me={me} onSignedOut={() => setMe(null)} />;
 }
 
@@ -95,6 +101,8 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
 
   const loc = useLocation();
 
+  const [pwOpen, setPwOpen] = useState(false);
+
   async function signOut() {
     try { await api.logout(); } finally { onSignedOut(); }
   }
@@ -135,9 +143,11 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
         <button onClick={() => nav('/help')}
                 aria-current={loc.pathname === '/help'}>설명서</button>
       </nav>
-      <span className="who">
+      {/* 내 이름을 누르면 비밀번호를 바꾼다 */}
+      <button type="button" className="who" title="비밀번호 바꾸기" onClick={() => setPwOpen(true)}>
         <b>{me.user.name}</b> · {me.user.roles.map(roleName).join('·')}
-      </span>
+      </button>
+      {pwOpen && <ChangePassword me={me} onDone={() => setPwOpen(false)} onCancel={() => setPwOpen(false)} />}
       <button className="btn" onClick={signOut}>로그아웃</button>
     </header>
   );

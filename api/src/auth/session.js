@@ -27,7 +27,7 @@ export async function login({ loginId, password, ip, userAgent }) {
     }
 
     const u = await q.one(
-      `SELECT id, login_id, name, password_hash, status, mfa_required
+      `SELECT id, login_id, name, password_hash, status, mfa_required, must_change_password
          FROM sec.app_user WHERE login_id = $1`, [loginId]);
 
     const ok = u && u.status === 'active'
@@ -66,7 +66,8 @@ export async function login({ loginId, password, ip, userAgent }) {
     return {
       ok: true, token,
       session: { id: s.id, absoluteExp: s.absolute_exp, idleLimitSec: idle },
-      user: { id: u.id, loginId: u.login_id, name: u.name, roles, mfaRequired: u.mfa_required },
+      user: { id: u.id, loginId: u.login_id, name: u.name, roles, mfaRequired: u.mfa_required,
+              mustChangePassword: u.must_change_password },
     };
   });
 }
@@ -84,6 +85,8 @@ export async function resolve(token) {
     if (!s) return null;
 
     await q('UPDATE sec.session SET last_seen_at = now() WHERE id = $1', [s.id]);
+    const must = await q.one(
+      'SELECT must_change_password AS m FROM sec.app_user WHERE id = $1', [s.user_id]);
 
     const roles = (await q.all(
       `SELECT role::text AS role FROM sec.user_role
@@ -108,6 +111,7 @@ export async function resolve(token) {
       farmIds: [...new Set(scopes.map((x) => x.farm_id))],
       idleExp: s.idle_exp,
       absoluteExp: s.absolute_exp,
+      mustChangePassword: !!must?.m,
     };
   }).then(async (u) => {
     if (!u || !u.scopes.length) return u;

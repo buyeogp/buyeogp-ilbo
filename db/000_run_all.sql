@@ -32,6 +32,7 @@ BEGIN;
 \ir 024_deaths_before_row.sql
 \ir 025_bulk_zero.sql
 \ir 026_report_return.sql
+\ir 027_password_change.sql
 
 COMMIT;
 
