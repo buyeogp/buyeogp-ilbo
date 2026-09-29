@@ -106,8 +106,8 @@ export const SECTIONS = [
             'Opening count — the system fills this. You cannot change it (grey)'),
           t('전입·전출·내부이동·판매 — 여기만 내가 넣습니다 (흰색)',
             'In / out / internal transfer / sold — *you* enter only these (white)'),
-          t('폐사·도태 — 폐사 등록에서 넘어옵니다 (회색)',
-            'Deaths and culls — these come from the mortality screen (grey)'),
+          t('폐사·도태 — *칸을 눌러* 등록합니다 (아래 「폐사·도태 등록」)',
+            'Deaths and culls — *click the cell* to record them (see "Recording deaths and culls")'),
           t('당일두수 — 시스템이 계산합니다 (회색)',
             'Closing count — the system calculates it (grey)'),
         ],
@@ -119,7 +119,7 @@ export const SECTIONS = [
           [t('전입 · 전출 · 내부이동 · 판매', 'In · Out · Internal · Sold'),
            t('내가 넣습니다', 'You enter it'), 'you'],
           [t('폐사 · 도태', 'Deaths · Culls'),
-           t('폐사 등록에서 넘어옵니다 (회색)', 'From the mortality screen (grey)'), 'auto'],
+           t('칸을 눌러 등록 창에서 넣습니다', 'Click the cell and add them in the form'), 'you'],
           [t('당일두수', 'Closing count'), t('시스템이 계산 (회색)', 'System calculates (grey)'), 'auto'],
           [t('보고두수', 'Counted head'),
            t('직접 센 두수 (안 세었으면 비워 둡니다)',
@@ -211,6 +211,67 @@ export const SECTIONS = [
     ],
   },
 
+  /* ── 폐사·도태 ────────────────────────────────────────────────── */
+  {
+    id: 'deaths',
+    views: ['field'],
+    title: t('폐사·도태 등록', 'Recording deaths and culls'),
+    blocks: [
+      { p: t('폐사·도태는 표 칸에 숫자를 치지 않습니다. *그 줄의 「폐사·도태」 칸을 누르면* 등록 창이 열리고, 거기서 한 건씩 넣습니다. 칸의 숫자는 *넣은 기록의 합*입니다.',
+             'Do not type deaths or culls into the table. *Click the "폐사·도태" cell of that row* to open a form and add them one by one. The number in the cell is *the total of what you recorded*.') },
+      { p: t('칸에 *점선 밑줄*이 있으면 누를 수 있다는 뜻입니다. 칸 오른쪽 위에 *주황 점*이 있으면 사진이 아직 안 붙은 폐사가 있다는 뜻입니다.',
+             'A *dotted underline* means you can click it. An *orange dot* in the corner means a death in that row still has no photo.') },
+
+      { h3: t('한 건 넣기', 'Adding one') },
+      { big: [
+        t('*종류* — 폐사(죽음) 또는 도태(내보냄)를 고릅니다.', '*Type* — choose 폐사 (died) or 도태 (culled).'),
+        t('*두수* — 몇 마리인지 넣습니다.', '*Head count* — how many.'),
+        t('*사유* — 아래 표에서 고릅니다. 「06 기타」는 사유를 글로 적어야 합니다.',
+          '*Reason* — pick from the table below. "06 기타" (other) needs a written reason.'),
+        t('*사진* — 폐사는 사진이 *꼭* 있어야 합니다. 「사진 찍기 · 고르기」를 누릅니다. 도태는 사진이 없어도 됩니다.',
+          '*Photo* — a death *must* have a photo. Press "사진 찍기 · 고르기". A cull does not need one.'),
+        t('*이각번호* — 모돈처럼 번호가 있으면 적습니다. 없으면 비워 둡니다.', '*Ear tag* — write it if the pig has one (e.g. a sow). Otherwise leave it empty.'),
+        t('아래 *「폐사 1두 등록」* 단추를 누릅니다. 칸 숫자와 당일두수가 바로 바뀝니다.',
+          'Press the *"폐사 1두 등록"* button. The cell and the closing count change at once.'),
+      ] },
+      { table: {
+        head: [t('사유', 'Reason'), t('폐사', 'Death'), t('도태', 'Cull')],
+        rows: [
+          [t('01 위축', '01 Wasting'), t('○', '○'), t('○', '○')],
+          [t('02 표피염', '02 Skin infection'), t('○', '○'), t('○', '○')],
+          [t('03 압사', '03 Crushed'), t('○', '○'), t('—', '—')],
+          [t('04 아사', '04 Starved'), t('○', '○'), t('—', '—')],
+          [t('05 도태', '05 Cull'), t('—', '—'), t('○', '○')],
+          [t('06 기타 (사유를 적습니다)', '06 Other (write the reason)'), t('○', '○'), t('○', '○')],
+        ],
+      } },
+      { p: t('종류에 맞지 않는 사유는 목록에 나오지 않습니다 (예: 도태를 고르면 「압사」가 없습니다).',
+             'Reasons that do not fit the type are not shown (e.g. "압사" is not offered for a cull).') },
+
+      { h3: t('사진을 못 찍었으면', 'If you could not take a photo') },
+      { ol: [
+        t('「사진을 못 찍었습니다 — 24시간 안에 붙이겠습니다」에 표시합니다.', 'Tick "사진을 못 찍었습니다 — 24시간 안에 붙이겠습니다".'),
+        t('못 찍은 사유를 적고 등록합니다. 그 기록에 *보완 기한(24시간 뒤)* 이 붙습니다.', 'Write why and add it. The record gets a *deadline 24 hours later*.'),
+        t('사진을 찍으면 그 칸을 다시 눌러, 기록 옆 *「사진 붙이기」* 를 누릅니다. 두수는 바뀌지 않으므로 *제출한 뒤에도* 붙일 수 있습니다.',
+          'When you have the photo, click the cell again and press *"사진 붙이기"* next to the record. The count does not change, so you can attach it *even after submitting*.'),
+      ] },
+      { warn: t('사진 없는 폐사는 본사 화면에 *주황 ●* 로 계속 보입니다. 카톡으로 따로 보내지 말고 *이 창에 붙여 주십시오.*',
+                'A death without a photo keeps showing an *orange ●* on the head-office screen. Do not send it by KakaoTalk — *attach it here.*') },
+
+      { h3: t('휴대폰으로 넣기', 'Using a phone') },
+      { p: t('휴대폰으로 이 사이트를 열면 숫자는 *보기만* 되지만, 돈방 카드마다 *「폐사·도태」* 단추가 있습니다. 사진 칸을 누르면 *카메라가 바로 열립니다* — 돈방에서 찍어 바로 올리면 됩니다.',
+             'On a phone you can only *view* the numbers, but each pen card has a *"폐사·도태"* button. The photo field *opens the camera directly* — take it in the pen and upload it right away.') },
+
+      { h3: t('잘못 넣었으면', 'If you made a mistake') },
+      { p: t('창에서 그 기록의 *「빼기」* 를 누르고 *「뺍니다」* 로 한 번 더 확인합니다. *제출하기 전까지만* 됩니다. 제출한 뒤에 찾으면 본사에 말합니다.',
+             'Press *"빼기"* (remove) on that record, then confirm with *"뺍니다"*. This works *only until you submit*. After that, tell the head office.') },
+
+      { h3: t('그날 기록 모아 보기', 'Seeing the whole day') },
+      { p: t('폐사·도태가 있으면 표 위에 *「오늘 폐사 N두 · 도태 M두」* 줄이 나옵니다. *「일지 · 사진 보기」* 를 누르면 그 돈사의 그날 기록이 사진과 함께 한 화면에 나옵니다. 사진을 누르면 *크게* 보입니다 (Esc 로 닫습니다).',
+             'When there are deaths or culls, a line *"오늘 폐사 N두 · 도태 M두"* appears above the table. Press *"일지 · 사진 보기"* to see all of the day’s records for the house with photos. Click a photo to *enlarge* it (Esc closes it).') },
+    ],
+  },
+
   /* ── 4. 제출 ──────────────────────────────────────────────────── */
   {
     id: 'submit',
@@ -269,6 +330,20 @@ export const SECTIONS = [
                 'Once confirmed, *the record is locked.* After that neither the team lead nor the head office can edit it directly. Issue a correction voucher instead.') },
       { p: t('잘못 확정했으면 *확정 해제*로 되돌릴 수 있습니다. 그 기록도 남습니다.',
              'If you confirmed by mistake, you can undo it with *확정 해제* (Unconfirm). That is recorded too.') },
+
+      { h3: t('폐사·도태와 사진 확인', 'Checking deaths, culls and photos') },
+      { ul: [
+        t('제출 현황 표의 *폐사 · 도태* 열에 돈사별 두수가 나옵니다. *주황 ●* 은 사진이 아직 안 붙은 폐사가 있는 돈사입니다.',
+          'The *폐사 · 도태* columns on the status board show counts per house. An *orange ●* marks a house with a death still missing a photo.'),
+        t('오른쪽 위 *「폐사·도태 일지」* 를 누르면 그 날 전 돈사의 기록이 *사진과 함께* 한 장에 나옵니다. 사진 보완이 남은 돈사가 맨 위에 옵니다.',
+          'Press *"폐사·도태 일지"* at the top right to see every house’s records for the day *with photos*. Houses still missing a photo come first.'),
+        t('사진을 누르면 크게 보입니다. 돈사 옆 *「일보 열기」* 로 그 일보로 갑니다.',
+          'Click a photo to enlarge it. *"일보 열기"* next to a house opens its report.'),
+        t('일보 안에서도 *폐사·도태 칸*을 누르면 그 줄의 기록과 사진을 볼 수 있습니다 (본사는 보기만).',
+          'Inside a report, clicking a *폐사·도태 cell* shows that row’s records and photos (head office can only view).'),
+      ] },
+      { p: t('사진 보완 기한(24시간)이 지난 폐사는 팀장에게 알려 주십시오.',
+             'If a death passes its 24-hour photo deadline, remind the team lead.') },
     ],
   },
 
@@ -314,8 +389,8 @@ export const SECTIONS = [
         marks: [{ x: 5, y: 12 }, { x: 31, y: 30 }, { x: 5, y: 82 }, { x: 30, y: 89 }],
         legend: [
           t('왼쪽은 돈사, 위쪽은 사람입니다', 'Houses on the left, people across the top'),
-          t('● 이 있으면 담당입니다. 칸을 누르면 바뀝니다',
-            'A ● means they look after it. Click the cell to change it'),
+          t('● 이 있으면 담당입니다. *빈 칸은 누르면 바로 담당*이 되고, ● 칸은 그 자리에서 뺄지 묻습니다',
+            'A ● means they look after it. *Click an empty cell to assign at once*; click a ● and it asks right there whether to remove'),
           t('왼쪽에 빨간 선 — 담당이 없는 돈사입니다', 'A red line on the left — no one is assigned'),
           t('담당이 없으면 아래에 경고가 나옵니다', 'A warning appears below if anyone is missing'),
         ],
@@ -373,6 +448,12 @@ export const SECTIONS = [
       { table: {
         head: [t('이런 때', 'When this happens'), t('이렇게', 'Do this')],
         rows: [
+          [t('폐사·도태 칸에 숫자가 안 써집니다', 'I cannot type in the deaths/culls cell'),
+           t('그 칸은 치는 곳이 아닙니다. *눌러서* 등록 창을 엽니다',
+             'That cell is not for typing. *Click it* to open the form')],
+          [t('폐사 등록이 안 됩니다', 'I cannot add a death'),
+           t('사진이 있거나, 「사진을 못 찍었습니다」와 사유가 있어야 합니다. 제출한 일보에는 넣을 수 없습니다',
+             'You need a photo, or "사진을 못 찍었습니다" with a reason. A submitted report cannot take new records')],
           [t('칸에 숫자가 안 써집니다', 'I cannot type in the cells'),
            t('*일보 시작* 을 눌렀는지 봅니다. 표 위에 왜 안 되는지 써 있습니다',
              'Check whether you pressed *일보 시작* (Start report). The reason is written above the table')],
