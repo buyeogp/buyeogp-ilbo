@@ -20,6 +20,12 @@ export function Login({ onDone }) {
     setErr(null);
     try {
       const r = await api.login(loginId.trim(), password);
+      // 같은 계정이 다른 곳에도 열려 있다 — 들어간 화면 위쪽에 한 번 알린다 (§6.4)
+      try {
+        if (r.otherSessions > 0) {
+          sessionStorage.setItem('otherLogin', JSON.stringify({ n: r.otherSessions, latest: r.otherLatest }));
+        }
+      } catch { /* 저장소를 못 쓰면 알림만 빠진다 */ }
       onDone(r);
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : '로그인하지 못했습니다.');

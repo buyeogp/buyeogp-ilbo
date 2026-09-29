@@ -43,6 +43,8 @@ export const api = {
   logout: () => call('POST', '/auth/logout'),
   me: () => call('GET', '/auth/me'),
   changePassword: (current, next) => call('POST', '/auth/password', { current, next }),
+  sessions: () => call('GET', '/auth/sessions'),
+  revokeOthers: () => call('POST', '/auth/sessions/revoke-others'),
 
   status: (date) => call('GET', `/reports/status?date=${date}`),
   report: (houseId, date) => call('GET', `/reports/${houseId}/${date}`),

@@ -54,6 +54,8 @@ export const TG_SECTIONS = [
           'The *administrator* gives each person their own ID and password. Do not share accounts.'),
         t('받은 비밀번호로 *처음 들어오면 새 비밀번호를 정하는 화면*이 먼저 나옵니다. 나만 아는 비밀번호로 바꾸고 시작하십시오 (8자 이상, 영문자 섞기). 나중에 바꾸려면 오른쪽 위 *내 이름*을 누릅니다.',
           'The *first time* you log in with the given password, a *set-new-password screen* appears. Choose one only you know (8+ characters, include letters). To change it later, click *your name* at the top right.'),
+        t('PC 와 휴대폰에 *함께 로그인해도 됩니다.* 다른 곳에 열려 있으면 로그인할 때 알려 주고, *내 이름 → 「열려 있는 로그인」* 에서 확인·로그아웃할 수 있습니다.',
+          'You *may log in on a PC and a phone at once.* If your account is open elsewhere you are told at login, and you can check or log out others in *your name → "열려 있는 로그인"*.'),
         t('*테스트 기간에도 엑셀 일보는 평소대로 씁니다.* 두 쪽 숫자를 맞춰 보는 것이 이번 시험의 핵심입니다.',
           '*Keep writing the Excel report as usual during the test.* Comparing the two is the main point of this test.'),
         t('테스트 기간에 넣은 숫자는 *정식 기록으로 쓰지 않습니다.* 정식 가동 전에 정리하고, 엑셀 원본으로 다시 채웁니다. 마음 놓고 눌러 보십시오.',

@@ -2,7 +2,8 @@
  * 인증 — /api/auth
  */
 import { Router } from 'express';
-import { login, logout, siblingSessions, cookieOptions } from '../../auth/session.js';
+import { login, logout, siblingSessions, cookieOptions, deviceLabel, mySessions, revokeOthers }
+  from '../../auth/session.js';
 import { config } from '../../config.js';
 import { HttpError, requireAuth, wrap } from '../middleware.js';
 import { hashPassword, passwordProblem, verifyPassword } from '../../auth/password.js';
@@ -41,6 +42,9 @@ authRouter.post('/login', wrap(async (req, res) => {
     user: r.user,
     session: { idleLimitSec: r.session.idleLimitSec, absoluteExp: r.session.absoluteExp },
     otherSessions: others.length,
+    // 가장 최근에 쓴 다른 로그인 — 「PC · Chrome, 09:12」로 알려 준다
+    otherLatest: others[0] ? { device: deviceLabel(others[0].user_agent),
+                               lastSeenAt: others[0].last_seen_at } : null,
   });
 }));
 
@@ -95,4 +99,17 @@ authRouter.post('/password', requireAuth, wrap(async (req, res) => {
     await q.log('UPDATE', 'sec.app_user', req.user.userId, `${req.user.loginId} 비밀번호 변경 (본인)`);
   });
   res.json({ ok: true });
+}));
+
+/**
+ * 내 계정으로 열려 있는 로그인 (§6.4 계정 공유 금지).
+ * 막지는 않는다 — 팀장은 PC 로 일보를 쓰며 휴대폰으로 폐사 사진을 올린다.
+ * 대신 보이게 하고, 모르는 것이 있으면 본인이 끊는다.
+ */
+authRouter.get('/sessions', requireAuth, wrap(async (req, res) => {
+  res.json({ sessions: await mySessions(req.user.userId, req.user.sessionId) });
+}));
+
+authRouter.post('/sessions/revoke-others', requireAuth, wrap(async (req, res) => {
+  res.json({ revoked: await revokeOthers(req.user.userId, req.user.sessionId) });
 }));

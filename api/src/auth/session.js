@@ -170,3 +170,40 @@ export async function sessionAlive(sessionId) {
   return anon(async (q) =>
     !!(await q.one('SELECT 1 AS ok FROM sec.v_active_session WHERE id = $1', [sessionId])));
 }
+
+/** 기기 이름 — 「휴대폰 · Chrome」 정도면 본인이 알아본다. 자세한 문자열은 보여 주지 않는다 */
+export function deviceLabel(ua) {
+  const u = String(ua ?? '');
+  const kind = /iPhone|Android.+Mobile|Mobi/i.test(u) ? '휴대폰'
+    : /iPad|Android|Tablet/i.test(u) ? '태블릿' : 'PC';
+  const browser = /Edg\//.test(u) ? 'Edge' : /SamsungBrowser/.test(u) ? '삼성 인터넷'
+    : /Whale/.test(u) ? '웨일' : /Chrome\//.test(u) ? 'Chrome' : /Firefox\//.test(u) ? 'Firefox'
+    : /Safari\//.test(u) ? 'Safari' : '브라우저';
+  return `${kind} · ${browser}`;
+}
+
+/** 내 계정으로 지금 열려 있는 로그인 전부 (이 기기 포함) */
+export async function mySessions(userId, currentId) {
+  const rows = await tx(userId, (q) => q.all(
+    `SELECT id, issued_at, last_seen_at, ip, user_agent
+       FROM sec.v_active_session WHERE user_id = $1 ORDER BY last_seen_at DESC`, [userId]));
+  return rows.map((r) => ({
+    id: r.id, current: String(r.id) === String(currentId),
+    device: deviceLabel(r.user_agent), ip: r.ip,
+    issuedAt: r.issued_at, lastSeenAt: r.last_seen_at,
+  }));
+}
+
+/** 지금 이 기기만 남기고 내 로그인을 모두 끊는다 */
+export async function revokeOthers(userId, currentId) {
+  return anon(async (q) => {
+    const r = await q(
+      `UPDATE sec.session SET revoked_at = now(), revoke_reason = '다른 곳 모두 로그아웃 (본인)'
+        WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL RETURNING id`, [userId, currentId]);
+    if (r.rowCount) {
+      await q(`INSERT INTO sec.audit_log (user_id, action, detail) VALUES ($1,'LOGOUT',$2)`,
+        [userId, `다른 곳 로그인 ${r.rowCount}개 끊음 (본인)`]);
+    }
+    return r.rowCount;
+  });
+}

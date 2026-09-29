@@ -16,6 +16,7 @@ import { Help } from './pages/Help.jsx';
 import { TestGuide } from './pages/TestGuide.jsx';
 import { Toasts } from './components/Toasts.jsx';
 import { ChangePassword } from './pages/ChangePassword.jsx';
+import { AccountMenu, Sessions } from './components/AccountMenu.jsx';
 import * as live from './live.js';
 
 const FARM_WIDE = ['farm_manager', 'hq_staff', 'hq_manager', 'auditor'];
@@ -74,6 +75,7 @@ function Shell({ me, onSignedOut }) {
       <TopBar me={me} houses={houses} date={date} farmWide={farmWide}
               onSignedOut={() => { live.stop(); onSignedOut(); }} />
       <Toasts me={me} farmWide={farmWide} />
+      <OtherLogin />
       <main>
         <Routes>
           <Route path="/" element={<Navigate to={home} replace />} />
@@ -100,8 +102,6 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
   const canAdmin = me.user.roles.some((r) => r === 'admin' || HQ.includes(r));
 
   const loc = useLocation();
-
-  const [pwOpen, setPwOpen] = useState(false);
 
   async function signOut() {
     try { await api.logout(); } finally { onSignedOut(); }
@@ -143,11 +143,9 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
         <button onClick={() => nav('/help')}
                 aria-current={loc.pathname === '/help'}>설명서</button>
       </nav>
-      {/* 내 이름을 누르면 비밀번호를 바꾼다 */}
-      <button type="button" className="who" title="비밀번호 바꾸기" onClick={() => setPwOpen(true)}>
-        <b>{me.user.name}</b> · {me.user.roles.map(roleName).join('·')}
-      </button>
-      {pwOpen && <ChangePassword me={me} onDone={() => setPwOpen(false)} onCancel={() => setPwOpen(false)} />}
+      {/* 내 이름 — 비밀번호 바꾸기 · 열려 있는 로그인 */}
+      <AccountMenu me={me}
+                   label={<><b>{me.user.name}</b> · {me.user.roles.map(roleName).join('·')}</>} />
       <button className="btn" onClick={signOut}>로그아웃</button>
     </header>
   );
@@ -171,4 +169,39 @@ export function roleName(r) {
     team_lead: '팀장', farm_manager: '현장관리', hq_staff: '본사',
     hq_manager: '본사관리', auditor: '감사', admin: '관리자',
   }[r] ?? r;
+}
+
+/**
+ * 로그인했을 때 같은 계정이 다른 곳에도 열려 있었다 — 한 번 알린다 (§6.4).
+ * 막지는 않는다. 내가 아니면 목록을 열어 끊는다.
+ */
+function OtherLogin() {
+  const [info] = useState(() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem('otherLogin') ?? 'null');
+      sessionStorage.removeItem('otherLogin');
+      return v;
+    } catch { return null; }
+  });
+  const [hidden, setHidden] = useState(false);
+  const [open, setOpen] = useState(false);
+  if (!info || hidden) return open ? <Sessions onClose={() => setOpen(false)} /> : null;
+  const at = info.latest?.lastSeenAt
+    ? new Date(info.latest.lastSeenAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <div className="notes other-login">
+      <div className="note warn">
+        <span className="where">다른 곳</span>
+        <span>
+          이 계정이 <b>다른 곳 {info.n}곳</b>에서도 로그인되어 있습니다
+          {info.latest ? ` (가장 최근: ${info.latest.device}${at ? `, ${at}` : ''})` : ''}.
+          {' '}내가 쓰는 다른 기기(휴대폰 등)가 아니면 끊고 비밀번호를 바꾸십시오. 계정은 같이 쓰지 않습니다.
+        </span>
+        <span className="spacer" />
+        <button className="btn small" onClick={() => { setOpen(true); setHidden(true); }}>열린 로그인 보기</button>
+        <button className="btn small" onClick={() => setHidden(true)}>닫기</button>
+      </div>
+      {open && <Sessions onClose={() => setOpen(false)} />}
+    </div>
+  );
 }

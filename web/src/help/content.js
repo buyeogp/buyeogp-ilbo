@@ -62,9 +62,20 @@ export const SECTIONS = [
       { ul: [
         t('*8자 이상*, *숫자만으로는 안 됨*(영문자를 섞기), *아이디가 들어가면 안 됨*, 너무 흔한 것(12345678 등) 안 됨',
           '*8 characters or more*, *not only numbers* (mix in letters), *must not contain your ID*, no very common ones (12345678 etc.)'),
-        t('언제든 바꾸려면 화면 *오른쪽 위 내 이름*을 누릅니다. 바꾸면 다른 PC 에 열려 있던 내 로그인은 끊깁니다.',
-          'To change it any time, click *your name at the top right*. Changing it logs you out on other PCs.'),
+        t('언제든 바꾸려면 화면 *오른쪽 위 내 이름* → *「비밀번호 바꾸기」*. 바꾸면 다른 PC 에 열려 있던 내 로그인은 끊깁니다.',
+          'To change it any time, click *your name at the top right* → *"비밀번호 바꾸기"*. Changing it logs you out on other PCs.'),
       ] },
+      { h3: t('다른 곳에서도 로그인되어 있으면', 'If you are also logged in somewhere else') },
+      { p: t('같은 계정으로 *PC 와 휴대폰에 함께* 들어와 있어도 됩니다 (PC 로 일보를 쓰며 휴대폰으로 폐사 사진을 올리는 경우). 다만 로그인할 때 다른 곳에 열려 있으면 화면 위에 *「이 계정이 다른 곳 1곳에서도 로그인되어 있습니다 (PC · Chrome, 09:12)」* 가 뜹니다.',
+             'You may be logged in on *a PC and a phone at the same time* (writing the report on the PC while uploading death photos from the phone). But if your account is open elsewhere when you log in, a notice appears: *"this account is also logged in at 1 other place (PC · Chrome, 09:12)"*.') },
+      { ul: [
+        t('*내 이름* → *「열려 있는 로그인」* 에서 지금 들어와 있는 곳을 모두 봅니다 (기기 · 들어온 시각 · 마지막 사용).',
+          '*Your name* → *"열려 있는 로그인"* lists every place you are logged in (device, login time, last use).'),
+        t('*모르는 기기*가 있으면 누군가 내 비밀번호를 안다는 뜻입니다. *「다른 곳 모두 로그아웃」* 을 누르고 *비밀번호를 바꿉니다.*',
+          'An *unknown device* means someone knows your password. Press *"다른 곳 모두 로그아웃"* and *change your password.*'),
+      ] },
+      { warn: t('계정은 *한 사람에 하나*입니다. 다른 사람과 같이 쓰면 누가 입력했는지 기록이 남지 않습니다.',
+                'One account *per person*. Sharing it with someone else destroys the record of who entered what.') },
       { warn: t('계정은 *같이 쓰지 않습니다.* 한 사람에 한 계정입니다. 누가 썼는지 기록이 남아야 하기 때문입니다.',
                 'Do *not share accounts.* One account per person. The system must record who entered what.') },
 

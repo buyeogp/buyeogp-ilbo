@@ -125,6 +125,25 @@ try {
   ck('현장 세션은 15분', ok.body?.session?.idleLimitSec === 900,
     `실제 ${ok.body?.session?.idleLimitSec}`);
 
+  // 같은 계정 두 곳 — 막지 않고 알린다 (§6.4)
+  {
+    const first = cookie;
+    cookie = '';
+    const second = await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+    ck('다른 곳 로그인이 있으면 알려 준다', second.body?.otherSessions >= 1 && !!second.body?.otherLatest,
+      JSON.stringify(second.body?.otherLatest));
+    const list = await call('GET', '/api/auth/sessions');
+    ck('열려 있는 내 로그인 목록 (이 기기 표시)', list.body?.sessions?.length >= 2
+      && list.body.sessions.filter((x) => x.current).length === 1, JSON.stringify(list.body)?.slice(0, 120));
+    const cut = await call('POST', '/api/auth/sessions/revoke-others');
+    ck('다른 곳 모두 로그아웃', cut.status === 200 && cut.body?.revoked >= 1, JSON.stringify(cut.body));
+    const keep = cookie;
+    cookie = first;
+    ck('끊긴 쪽은 401', (await call('GET', '/api/auth/me')).status === 401);
+    cookie = keep;
+    ck('이 기기는 그대로', (await call('GET', '/api/auth/me')).status === 200);
+  }
+
   const me = await call('GET', '/api/auth/me');
   ck('/me 가 담당 돈사를 준다', me.body?.scopes?.length === 1
     && me.body.scopes[0].houseCode === 'JADON',
