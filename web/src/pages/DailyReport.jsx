@@ -11,12 +11,13 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, ApiError, formatDate, shiftDate, STATUS_LABEL } from '../api.js';
+import { api, ApiError, formatDate, STATUS_LABEL } from '../api.js';
 import {
   Grid, MOVES, calcClosing, calcVariance, num, rowComplete, rowFaults, rowTouched,
 } from '../components/Grid.jsx';
 import { DeathPanel } from '../components/DeathPanel.jsx';
 import { DeathLog } from '../components/DeathLog.jsx';
+import { DateNav } from '../components/DateNav.jsx';
 
 const CONFIRMERS = ['hq_staff', 'hq_manager'];
 const UNCONFIRMERS = ['farm_manager', 'hq_staff', 'hq_manager'];
@@ -230,9 +231,11 @@ export function DailyReport({ me, houseId, date, onChanged }) {
 
   // 넣던 것이 있으면 **묻지 않고 저장한 뒤** 옮긴다.
   // 「저장 안 했는데 갈까요?」는 답이 하나뿐인 질문이다 — 잃고 싶은 사람은 없다.
-  const goDate = async (delta) => {
+  // 다른 날로 가기 전에 치던 것을 저장한다
+  const goTo = async (d) => {
+    if (d === date) return;
     if (dirty) await save();
-    nav(`/report/${houseId}/${shiftDate(date, delta)}`);
+    nav(`/report/${houseId}/${d}`);
   };
 
   if (err && !data) return <div className="center">{err}</div>;
@@ -299,8 +302,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
             {data.report.confirmerName ? ` · 확정 ${data.report.confirmerName}` : ''}</span>
         )}
         <span className="spacer" />
-        <button className="btn" onClick={() => goDate(-1)}>‹ 전날</button>
-        <button className="btn" onClick={() => goDate(1)}>다음날 ›</button>
+        <DateNav date={date} onGo={goTo} />
       </div>
 
       {narrow && (

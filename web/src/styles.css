@@ -1091,3 +1091,11 @@ td.deaths.due::after {
   color: #fff; font-size: 13px;
 }
 .lightbox .btn { background: rgba(255, 255, 255, .92); color: #16232C; }
+
+/* 날짜 옮기기 — 전날 · 달력 · 다음날 · 오늘 */
+.datenav { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.datenav input[type="date"] {
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13px;
+}
+.datenav input[type="date"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }

@@ -6,8 +6,9 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, ApiError, formatDate, shiftDate, STATUS_LABEL } from '../api.js';
+import { api, ApiError, formatDate, STATUS_LABEL } from '../api.js';
 import { DeathLog } from '../components/DeathLog.jsx';
+import { DateNav } from '../components/DateNav.jsx';
 
 const TONE = {
   confirmed: 'confirmed', locked: 'locked',
@@ -59,8 +60,7 @@ export function HouseStatus({ date }) {
         <button className="btn" onClick={() => setLogOpen(true)}>
           폐사·도태 일지{dueAll > 0 ? ` · 사진 보완 ${dueAll}` : ''}
         </button>
-        <button className="btn" onClick={() => nav(`/status/${shiftDate(date, -1)}`)}>‹ 전날</button>
-        <button className="btn" onClick={() => nav(`/status/${shiftDate(date, 1)}`)}>다음날 ›</button>
+        <DateNav date={date} onGo={(d) => nav(`/status/${d}`)} />
       </div>
 
       <div className="grid-wrap fit">
