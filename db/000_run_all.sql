@@ -31,6 +31,7 @@ BEGIN;
 \ir 023_v5_message.sql
 \ir 024_deaths_before_row.sql
 \ir 025_bulk_zero.sql
+\ir 026_report_return.sql
 
 COMMIT;
 

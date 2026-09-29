@@ -272,8 +272,34 @@ try {
     { kind: 'culling', penId: rows[0].penId, headCount: 1, reasonCode: '05' });
   ck('제출 후 폐사·도태 추가 거부', lockedDeath.status === 409, `실제 ${lockedDeath.status}`);
 
+  // 제출 취소 — 확정 전이면 팀장이 스스로 거둔다
+  const wd = await call('POST', `/api/reports/${reportId}/withdraw`);
+  ck('제출 취소하면 작성 중으로', wd.status === 200 && wd.body?.status === 'draft', JSON.stringify(wd.body));
+  const re1 = await call('POST', `/api/reports/${reportId}/submit`);
+  ck('다시 제출', re1.status === 200, JSON.stringify(re1.body));
+  const selfReturn = await call('POST', `/api/reports/${reportId}/return`, { reason: '셀프' });
+  ck('팀장은 되돌려 보내기 권한 없음', selfReturn.status === 403, `실제 ${selfReturn.status}`);
+
   cookie = '';
   await call('POST', '/api/auth/login', { loginId: 'smoke.hq', password: TEST_PW });
+
+  // 되돌려 보내기 — 본사가 사유를 붙인다. 팀장 화면에 사유가 보여야 한다
+  const noReason = await call('POST', `/api/reports/${reportId}/return`, { reason: ' ' });
+  ck('사유 없이 되돌려 보낼 수 없다', noReason.status === 422, `실제 ${noReason.status}`);
+  const ret = await call('POST', `/api/reports/${reportId}/return`, { reason: '1-3 전출 다시 확인' });
+  ck('되돌려 보내면 작성 중으로', ret.status === 200 && ret.body?.status === 'draft', JSON.stringify(ret.body));
+  {
+    const save = cookie;
+    cookie = '';
+    await call('POST', '/api/auth/login', { loginId: 'smoke.lead', password: TEST_PW });
+    const g = await call('GET', `/api/reports/${jadon}/${TEST_DATE}`);
+    ck('팀장에게 되돌림 사유가 보인다', g.body?.report?.returnReason === '1-3 전출 다시 확인'
+      && g.body?.report?.returnedBy === '시험 본사', JSON.stringify(g.body?.report)?.slice(0, 160));
+    const re2 = await call('POST', `/api/reports/${reportId}/submit`);
+    ck('고친 뒤 다시 제출하면 사유가 지워진다', re2.status === 200
+      && (await call('GET', `/api/reports/${jadon}/${TEST_DATE}`)).body?.report?.returnReason == null);
+    cookie = save;
+  }
   const hqMe = await call('GET', '/api/auth/me');
   ck('본사 세션은 30분', hqMe.body?.session != null);
 

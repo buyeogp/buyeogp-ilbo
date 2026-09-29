@@ -51,6 +51,8 @@ export const api = {
   submit: (reportId) => call('POST', `/reports/${reportId}/submit`),
   confirm: (reportId) => call('POST', `/reports/${reportId}/confirm`),
   unconfirm: (reportId) => call('POST', `/reports/${reportId}/unconfirm`),
+  withdraw: (reportId) => call('POST', `/reports/${reportId}/withdraw`),
+  sendBack: (reportId, reason) => call('POST', `/reports/${reportId}/return`, { reason }),
 
   // 폐사·도태 (§4.7) — 일보의 폐사·도태 칸은 여기서만 채워진다
   deaths: (reportId) => call('GET', `/reports/${reportId}/deaths`),

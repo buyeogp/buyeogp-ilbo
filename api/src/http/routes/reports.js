@@ -80,10 +80,12 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
       `SELECT dr.id, dr.status::text, dr.author_id, dr.confirmed_by, dr.note_text,
               dr.submitted_at, dr.confirmed_at, dr.locked_at, dr.printed_at,
               dr.bulk_zero_rows, dr.bulk_zero_at,
+              dr.return_reason, dr.returned_at, rb.name AS returned_by_name,
               a.name AS author_name, c.name AS confirmer_name
          FROM app.daily_report dr
          LEFT JOIN sec.app_user a ON a.id = dr.author_id
          LEFT JOIN sec.app_user c ON c.id = dr.confirmed_by
+         LEFT JOIN sec.app_user rb ON rb.id = dr.returned_by
         WHERE dr.house_id = $1 AND dr.report_date = $2::date`, [houseId, date]);
 
     const saved = report ? await q.all(
@@ -179,6 +181,8 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
       submittedAt: out.report.submitted_at, confirmedAt: out.report.confirmed_at,
       lockedAt: out.report.locked_at, printedAt: out.report.printed_at,
       bulkZeroRows: out.report.bulk_zero_rows, bulkZeroAt: out.report.bulk_zero_at,
+      returnReason: out.report.return_reason, returnedAt: out.report.returned_at,
+      returnedBy: out.report.returned_by_name,
     },
     rows: out.rows,
     violations: out.violations.map((v) => ({
@@ -314,7 +318,9 @@ reportsRouter.post('/:reportId/submit', wrap(async (req, res) => {
       throw new HttpError(403, 'forbidden', '담당 돈사가 아닙니다.');
     }
     return q.one(
-      `UPDATE app.daily_report SET status = 'submitted', submitted_at = now()
+      `UPDATE app.daily_report
+          SET status = 'submitted', submitted_at = now(),
+              return_reason = NULL, returned_at = NULL, returned_by = NULL
         WHERE id = $1 RETURNING id, status::text, submitted_at`, [rep.id]);
   });
   res.json({ reportId: r.id, status: r.status, submittedAt: r.submitted_at });
@@ -330,12 +336,82 @@ reportsRouter.post('/:reportId/confirm', requireRole('hq_staff', 'hq_manager'),
     res.json({ reportId: r.id, status: r.status, confirmedAt: r.confirmed_at });
   }));
 
-/** 확정 해제 (§5.9) */
+/**
+ * 뒤 날짜 일보가 이미 있으면 이 일보를 되돌리면 안 된다. 뒤 날짜의 전일두수(V2)는
+ * 이 일보가 확정될 때의 당일두수로 이미 박혀 있다 — 여기를 고쳐도 따라가지 않는다.
+ * 그 경우는 정정전표(뒤 날짜까지 다시 계산)로 간다.
+ */
+async function assertNoLater(q, reportId) {
+  const later = await q.one(
+    `SELECT n.report_date::text AS d FROM app.daily_report d
+       JOIN app.daily_report n ON n.house_id = d.house_id AND n.report_date > d.report_date
+      WHERE d.id = $1 ORDER BY n.report_date LIMIT 1`, [reportId]);
+  if (later) {
+    throw new HttpError(409, 'has_later',
+      `다음 일보(${later.d})가 이미 있어 되돌릴 수 없습니다. 뒤 날짜 두수가 이 일보에서 이어졌기 때문입니다. `
+      + '고쳐야 하면 정정전표로 합니다 — 테스트 기간에는 개발자에게 알려 주십시오.');
+  }
+}
+
+/** 확정 해제 (§5.9) — 확정자·시각도 비운다. 다시 확정하는 사람이 확정자가 된다 */
 reportsRouter.post('/:reportId/unconfirm',
   requireRole('farm_manager', 'hq_staff', 'hq_manager'), wrap(async (req, res) => {
-    const r = await tx(req.user.userId, (q) => q.one(
-      `UPDATE app.daily_report SET status = 'submitted'
-        WHERE id = $1 RETURNING id, status::text`, [req.params.reportId]));
-    if (!r) throw new HttpError(404, 'not_found', '일보를 찾을 수 없습니다.');
+    const r = await tx(req.user.userId, async (q) => {
+      await assertNoLater(q, req.params.reportId);
+      return q.one(
+        `UPDATE app.daily_report SET status = 'submitted', confirmed_by = NULL, confirmed_at = NULL
+          WHERE id = $1 AND status = 'confirmed' RETURNING id, status::text, printed_at`,
+        [req.params.reportId]);
+    });
+    if (!r) throw new HttpError(409, 'not_confirmed', '확정된 일보가 아닙니다.');
+    res.json({ reportId: r.id, status: r.status, wasPrinted: !!r.printed_at });
+  }));
+
+/** 제출 취소 — 팀장이 확정 전에 스스로 거둔다 */
+reportsRouter.post('/:reportId/withdraw', wrap(async (req, res) => {
+  const r = await tx(req.user.userId, async (q) => {
+    const rep = await q.one(
+      'SELECT id, house_id, status::text FROM app.daily_report WHERE id = $1', [req.params.reportId]);
+    if (!rep) throw new HttpError(404, 'not_found', '일보를 찾을 수 없습니다.');
+    if (!canWriteHouse(req.user, rep.house_id)) {
+      throw new HttpError(403, 'forbidden', '담당 돈사가 아닙니다.');
+    }
+    if (rep.status !== 'submitted') {
+      throw new HttpError(409, 'not_submitted', rep.status === 'draft'
+        ? '아직 제출하지 않은 일보입니다.'
+        : '이미 본사가 확정했습니다. 본사에 「확정 해제」를 부탁하십시오.');
+    }
+    await assertNoLater(q, rep.id);
+    return q.one(
+      `UPDATE app.daily_report SET status = 'draft', submitted_at = NULL
+        WHERE id = $1 RETURNING id, status::text`, [rep.id]);
+  });
+  res.json({ reportId: r.id, status: r.status });
+}));
+
+/** 되돌려 보내기 — 본사가 사유를 붙여 팀장에게 돌려보낸다 (확정 전) */
+reportsRouter.post('/:reportId/return',
+  requireRole('farm_manager', 'hq_staff', 'hq_manager'), wrap(async (req, res) => {
+    const reason = String(req.body?.reason ?? '').trim();
+    if (!reason) throw new HttpError(422, 'need_reason', '무엇을 고쳐야 하는지 적어 주십시오.');
+    const r = await tx(req.user.userId, async (q) => {
+      const rep = await q.one(
+        'SELECT id, house_id, status::text FROM app.daily_report WHERE id = $1', [req.params.reportId]);
+      if (!rep) throw new HttpError(404, 'not_found', '일보를 찾을 수 없습니다.');
+      if (!canAccessHouse(req.user, rep.house_id)) {
+        throw new HttpError(403, 'forbidden', '볼 수 있는 돈사가 아닙니다.');
+      }
+      if (rep.status !== 'submitted') {
+        throw new HttpError(409, 'not_submitted', rep.status === 'confirmed'
+          ? '확정된 일보입니다. 먼저 「확정 해제」를 하십시오.'
+          : '제출된 일보가 아닙니다.');
+      }
+      await assertNoLater(q, rep.id);
+      return q.one(
+        `UPDATE app.daily_report
+            SET status = 'draft', submitted_at = NULL,
+                return_reason = $2, returned_at = now(), returned_by = $3
+          WHERE id = $1 RETURNING id, status::text`, [rep.id, reason, req.user.userId]);
+    });
     res.json({ reportId: r.id, status: r.status });
   }));

@@ -134,6 +134,10 @@ export function DailyReport({ me, houseId, date, onChanged }) {
    * (B) 「빈칸 0으로 채우기」 — 남은 빈칸을 한꺼번에. 줄 수를 서버에 남긴다(025).
    * 본사가 확정할 때 「N줄을 한꺼번에 채움」을 보고 정말 다 봤는지 물을 수 있게.
    */
+  const [ask, setAsk] = useState(null);        // 'submit' | 'withdraw' | 'return' | 'unconfirm'
+  const [backReason, setBackReason] = useState('');
+  const [info, setInfo] = useState(null);
+
   const bulkPending = useRef(0);
   const [askBulk, setAskBulk] = useState(false);
   const fillAll = useCallback(() => {
@@ -267,7 +271,13 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     await api.submit(data.report.id);
   });
   const confirm = () => act('confirm', () => api.confirm(data.report.id));
-  const unconfirm = () => act('unconfirm', () => api.unconfirm(data.report.id));
+  // 확정 해제 뒤: 이미 뽑은 종이가 있으면 바꿔야 한다고 알린다
+  const unconfirm = () => act('unconfirm', async () => {
+    const r = await api.unconfirm(data.report.id);
+    if (r.wasPrinted) setInfo('이미 출력한 일보입니다. 고쳐서 다시 확정하면 PDF 를 다시 뽑아 종이를 바꿔 주십시오.');
+  });
+  const withdraw = () => act('withdraw', () => api.withdraw(data.report.id));
+  const sendBack = (reason) => act('return', () => api.sendBack(data.report.id, reason));
 
   // 넣던 것이 있으면 **묻지 않고 저장한 뒤** 옮긴다.
   // 「저장 안 했는데 갈까요?」는 답이 하나뿐인 질문이다 — 잃고 싶은 사람은 없다.
@@ -375,6 +385,22 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         );
       })()}
 
+      {status === 'draft' && data.report?.returnReason && (
+        <div className="notes">
+          <div className="note block">
+            <span className="where">되돌아옴</span>
+            <span>
+              <b>{data.report.returnedBy ?? '본사'}</b> 님이 되돌려 보냈습니다
+              {data.report.returnedAt ? ` (${new Date(data.report.returnedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})` : ''}:
+              {' '}<b>{data.report.returnReason}</b> — 고친 뒤 다시 제출하십시오.
+            </span>
+          </div>
+        </div>
+      )}
+      {info && (
+        <div className="notes"><div className="note info"><span>{info}</span></div></div>
+      )}
+
       {data.report?.bulkZeroRows > 0 && (
         <div className="notes">
           <div className={'note ' + (status === 'submitted' ? 'warn' : 'info')}>
@@ -447,10 +473,22 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         {editable && (
           <>
             <SaveState state={saveState} dirty={dirty} />
-            <button className="btn primary" onClick={submit}
-                    disabled={busy != null || missing > 0 || faulty > 0}>
-              {busy === 'submit' ? '제출 중…' : '제출'}
-            </button>
+            {ask === 'submit' ? (
+              <span className="inline-confirm">
+                <b>제출하시겠습니까?</b>
+                {' '}{rows.length}줄 · 폐사·도태 {rows.reduce((a, r) => a + num(r.deadHead) + num(r.culledHead), 0)}두
+                {photoDue.size > 0 && <span className="dl-due"> · 폐사 사진 보완 {photoDue.size}줄 남음</span>}
+                {' '}— 제출하면 고칠 수 없습니다(본사 확정 전에는 「제출 취소」로 되돌릴 수 있습니다).
+                <button className="btn small" onClick={() => setAsk(null)}>다시 보기</button>
+                <button className="btn small primary" disabled={busy != null}
+                        onClick={() => { setAsk(null); submit(); }}>제출합니다</button>
+              </span>
+            ) : (
+              <button className="btn primary" onClick={() => setAsk('submit')}
+                      disabled={busy != null || missing > 0 || faulty > 0}>
+                {busy === 'submit' ? '제출 중…' : '제출'}
+              </button>
+            )}
           </>
         )}
 
@@ -464,14 +502,50 @@ export function DailyReport({ me, houseId, date, onChanged }) {
           </button>
         )}
 
+        {/* 제출 취소 — 확정 전이면 담당 팀장이 스스로 거둔다 */}
+        {status === 'submitted' && data.canWriteHouse && (ask === 'withdraw' ? (
+          <span className="inline-confirm">
+            제출을 취소하고 다시 고칩니다. 본사 확정 대기에서 빠집니다.
+            <button className="btn small" onClick={() => setAsk(null)}>그대로 둡니다</button>
+            <button className="btn small primary" disabled={busy != null}
+                    onClick={() => { setAsk(null); withdraw(); }}>제출 취소</button>
+          </span>
+        ) : (
+          <button className="btn" onClick={() => setAsk('withdraw')} disabled={busy != null}>제출 취소</button>
+        ))}
+
+        {/* 되돌려 보내기 — 본사가 사유를 붙여 팀장에게. 사유는 팀장 화면 맨 위에 나온다 */}
+        {status === 'submitted' && canUnconfirm && (ask === 'return' ? (
+          <span className="inline-confirm">
+            <label htmlFor="back-reason">고칠 곳</label>
+            <input id="back-reason" className="back-reason" value={backReason} autoFocus
+                   onChange={(e) => setBackReason(e.target.value)}
+                   placeholder="예: 1-3 포유자돈 전출 다시 확인" />
+            <button className="btn small" onClick={() => { setAsk(null); setBackReason(''); }}>그만두기</button>
+            <button className="btn small primary" disabled={busy != null || !backReason.trim()}
+                    onClick={() => { setAsk(null); sendBack(backReason.trim()); setBackReason(''); }}>
+              되돌려 보내기
+            </button>
+          </span>
+        ) : (
+          <button className="btn" onClick={() => setAsk('return')} disabled={busy != null}>되돌려 보내기</button>
+        ))}
+
         {status === 'submitted' && canConfirm && (
           <button className="btn primary" onClick={confirm} disabled={busy != null}>
             {busy === 'confirm' ? '확정 중…' : '확정'}
           </button>
         )}
-        {(status === 'confirmed' || status === 'locked') && canUnconfirm && (
-          <button className="btn" onClick={unconfirm} disabled={busy != null}>확정 해제</button>
-        )}
+        {(status === 'confirmed' || status === 'locked') && canUnconfirm && (ask === 'unconfirm' ? (
+          <span className="inline-confirm">
+            확정을 풀면 <b>제출됨</b>으로 돌아갑니다. 고칠 곳이 있으면 이어서 「되돌려 보내기」를 합니다.
+            <button className="btn small" onClick={() => setAsk(null)}>그대로 둡니다</button>
+            <button className="btn small primary" disabled={busy != null}
+                    onClick={() => { setAsk(null); unconfirm(); }}>확정 해제</button>
+          </span>
+        ) : (
+          <button className="btn" onClick={() => setAsk('unconfirm')} disabled={busy != null}>확정 해제</button>
+        ))}
       </div>
     </>
   );

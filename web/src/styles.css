@@ -1099,3 +1099,11 @@ td.deaths.due::after {
   background: var(--surface); color: var(--ink); font: inherit; font-size: 13px;
 }
 .datenav input[type="date"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* 되돌려 보내기 사유 칸 */
+.inline-confirm label { font-weight: 600; font-size: 12.5px; }
+.inline-confirm .back-reason {
+  min-width: 240px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13px;
+}
+.inline-confirm .back-reason:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
