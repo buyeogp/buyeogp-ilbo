@@ -213,10 +213,14 @@ table.grid th, table.grid td {
   white-space: nowrap;
 }
 
-table.grid thead th {
+/* 머리는 두 줄이다. 칸마다 top:0 으로 붙이면 둘째 줄(전입·전출…)이 첫째 줄(변동·실사 검산)
+   위에 겹쳐 올라가고, 비어 버린 둘째 줄 자리로 본문이 비친다. thead 째로 붙인다 */
+table.grid thead {
   position: sticky;
   top: 0;
   z-index: 3;
+}
+table.grid thead th {
   background: var(--head);
   font-size: 11.5px;
   font-weight: 600;
