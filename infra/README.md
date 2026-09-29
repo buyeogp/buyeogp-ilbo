@@ -73,7 +73,7 @@ Supabase 와 왕복마다 0.13초가 붙어 일보 한 번 여는 데 2~3초가 
 
 | 메일 | 쓰이는 곳 | 소유 |
 |---|---|---|
-| `buyeogp2026@gmail.com` | AWS **루트 메일** · Builder ID 로그인(Google 소셜 로그인, TOTP MFA 등록) | **개발자가 만든 AWS 전용 메일** |
+| `buyeogp2026@gmail.com` | AWS **루트 메일** · Builder ID 로그인(Google 소셜 로그인, TOTP MFA 등록) · **Sentry** 로그인·알림 (조직 `buyeogp`) | **개발자가 만든 AWS 전용 메일** |
 | `buyeogp@gmail.com` | 발주처가 원래 쓰던 메일 · Budgets 알림 · 결제 대체 연락처 | 발주처 |
 | (개발자 개인 메일) | Builder ID 복구 메일 · Budgets 알림(개발 기간만) | 개발자 |
 
@@ -88,7 +88,8 @@ Supabase 와 왕복마다 0.13초가 붙어 일보 한 번 여는 데 2~3초가 
 **인수인계 때 넘길 것** — `buyeogp2026@gmail.com` Google 계정을 통째로 발주처에:
 비밀번호 변경 · 2단계 인증 휴대폰을 발주처 번호로 · Google 복구 메일/번호 교체 ·
 Builder ID 복구 메일을 `buyeogp@gmail.com` 으로 · Builder ID MFA 를 발주처 휴대폰에 재등록 ·
-AWS 연락처 전화번호를 발주처 번호로 · Budgets 알림 수신자에서 개발자 개인 메일 빼기.
+AWS 연락처 전화번호를 발주처 번호로 · Budgets 알림 수신자에서 개발자 개인 메일 빼기 ·
+Sentry 조직 `buyeogp` 은 같은 Google 계정이라 함께 넘어간다 (DSN 은 Client Keys 에서 확인).
 
 ## 도메인
 
