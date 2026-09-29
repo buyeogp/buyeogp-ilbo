@@ -177,6 +177,22 @@ BEGIN
        LIMIT 1;
 
       NEW.opening_head := COALESCE(v_prev, 0);
+
+      -- V7 : 폐사·도태를 일보 행보다 먼저 등록했으면 그 두수를 가지고 태어난다.
+      -- 원장이 바뀔 때 다시 세는 트리거(fn_recount_pen_daily)는 있는 행만 고치므로,
+      -- 여기서 안 세면 늦게 저장된 행은 0 으로 남아 제출 때 「폐사 두수 불일치」가 된다
+      NEW.dead_head := COALESCE((SELECT SUM(m.head_count) FROM mortality m
+                                  WHERE m.house_id = v_rep.house_id
+                                    AND m.pen_id      IS NOT DISTINCT FROM NEW.pen_id
+                                    AND m.batch_id    IS NOT DISTINCT FROM NEW.batch_id
+                                    AND m.category_id IS NOT DISTINCT FROM NEW.category_id
+                                    AND m.event_date = v_rep.report_date), 0);
+      NEW.culled_head := COALESCE((SELECT SUM(c.head_count) FROM culling c
+                                    WHERE c.house_id = v_rep.house_id
+                                      AND c.pen_id      IS NOT DISTINCT FROM NEW.pen_id
+                                      AND c.batch_id    IS NOT DISTINCT FROM NEW.batch_id
+                                      AND c.category_id IS NOT DISTINCT FROM NEW.category_id
+                                      AND c.event_date = v_rep.report_date), 0);
     END IF;
 
   ELSIF TG_OP = 'UPDATE' THEN
@@ -252,38 +268,46 @@ CREATE FUNCTION app.fn_recount_pen_daily(
   p_batch_id bigint, p_category_id bigint, p_date date)
 RETURNS void LANGUAGE plpgsql
 SET search_path = app, sec, extensions, public AS $$
+DECLARE v_sum int;
 BEGIN
   IF p_house_id IS NULL OR p_date IS NULL THEN RETURN; END IF;
-  PERFORM set_config('app.sync', 'on', true);
 
   IF p_kind = 'mortality' THEN
-    UPDATE pen_daily pd
-       SET dead_head = COALESCE((SELECT SUM(m.head_count) FROM mortality m
-                                  WHERE m.house_id = p_house_id
-                                    AND m.pen_id      IS NOT DISTINCT FROM p_pen_id
-                                    AND m.batch_id    IS NOT DISTINCT FROM p_batch_id
-                                    AND m.category_id IS NOT DISTINCT FROM p_category_id
-                                    AND m.event_date = p_date), 0)
-     WHERE pd.house_id = p_house_id
-       AND pd.pen_id      IS NOT DISTINCT FROM p_pen_id
-       AND pd.batch_id    IS NOT DISTINCT FROM p_batch_id
-       AND pd.category_id IS NOT DISTINCT FROM p_category_id
-       AND pd.report_date = p_date;
+    SELECT COALESCE(SUM(m.head_count), 0) INTO v_sum FROM mortality m
+     WHERE m.house_id = p_house_id
+       AND m.pen_id      IS NOT DISTINCT FROM p_pen_id
+       AND m.batch_id    IS NOT DISTINCT FROM p_batch_id
+       AND m.category_id IS NOT DISTINCT FROM p_category_id
+       AND m.event_date = p_date;
   ELSE
-    UPDATE pen_daily pd
-       SET culled_head = COALESCE((SELECT SUM(c.head_count) FROM culling c
-                                    WHERE c.house_id = p_house_id
-                                      AND c.pen_id      IS NOT DISTINCT FROM p_pen_id
-                                      AND c.batch_id    IS NOT DISTINCT FROM p_batch_id
-                                      AND c.category_id IS NOT DISTINCT FROM p_category_id
-                                      AND c.event_date = p_date), 0)
-     WHERE pd.house_id = p_house_id
-       AND pd.pen_id      IS NOT DISTINCT FROM p_pen_id
-       AND pd.batch_id    IS NOT DISTINCT FROM p_batch_id
-       AND pd.category_id IS NOT DISTINCT FROM p_category_id
-       AND pd.report_date = p_date;
+    SELECT COALESCE(SUM(c.head_count), 0) INTO v_sum FROM culling c
+     WHERE c.house_id = p_house_id
+       AND c.pen_id      IS NOT DISTINCT FROM p_pen_id
+       AND c.batch_id    IS NOT DISTINCT FROM p_batch_id
+       AND c.category_id IS NOT DISTINCT FROM p_category_id
+       AND c.event_date = p_date;
   END IF;
 
+  -- 두수가 **실제로 바뀔 때만** 일보 행을 고친다. 사진 보완처럼 두수와 무관한 수정이
+  -- 확정된 일보 행을 건드려 P4(확정 후 불변)에 걸리던 것을 막는다
+  PERFORM set_config('app.sync', 'on', true);
+  IF p_kind = 'mortality' THEN
+    UPDATE pen_daily pd SET dead_head = v_sum
+     WHERE pd.house_id = p_house_id
+       AND pd.pen_id      IS NOT DISTINCT FROM p_pen_id
+       AND pd.batch_id    IS NOT DISTINCT FROM p_batch_id
+       AND pd.category_id IS NOT DISTINCT FROM p_category_id
+       AND pd.report_date = p_date
+       AND pd.dead_head <> v_sum;
+  ELSE
+    UPDATE pen_daily pd SET culled_head = v_sum
+     WHERE pd.house_id = p_house_id
+       AND pd.pen_id      IS NOT DISTINCT FROM p_pen_id
+       AND pd.batch_id    IS NOT DISTINCT FROM p_batch_id
+       AND pd.category_id IS NOT DISTINCT FROM p_category_id
+       AND pd.report_date = p_date
+       AND pd.culled_head <> v_sum;
+  END IF;
   PERFORM set_config('app.sync', 'off', true);
 END $$;
 

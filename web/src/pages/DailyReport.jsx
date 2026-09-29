@@ -15,6 +15,7 @@ import { api, ApiError, formatDate, shiftDate, STATUS_LABEL } from '../api.js';
 import {
   Grid, MOVES, calcClosing, calcVariance, num, rowComplete, rowFaults, rowTouched,
 } from '../components/Grid.jsx';
+import { DeathPanel } from '../components/DeathPanel.jsx';
 
 const CONFIRMERS = ['hq_staff', 'hq_manager'];
 const UNCONFIRMERS = ['farm_manager', 'hq_staff', 'hq_manager'];
@@ -63,6 +64,8 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const [err, setErr] = useState(null);
   const [violations, setViolations] = useState([]);
   const [saveState, setSaveState] = useState({ kind: 'idle' });  // 자동저장 표시
+  const [deaths, setDeaths] = useState(null);   // { items, reasons, photoStorage }
+  const [deathRow, setDeathRow] = useState(null);  // 등록 창을 연 줄 번호
 
   // 아직 서버에 안 보낸 줄. 화면을 다시 그려도 유지되어야 하므로 ref 에 둔다.
   const pending = useRef(new Set());
@@ -77,6 +80,10 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       setData(d);
       setRows(d.rows.map(toEdit));
       setViolations(d.violations);
+      setDeaths(null);
+      setDeathRow(null);
+      // 폐사·도태 기록 — 사진 보완이 남은 줄을 표에 표시하려면 처음에 받아 둔다
+      if (d.report) api.deaths(d.report.id).then(setDeaths).catch(() => {});
       setDirty(false);
       pending.current.clear();
       setSaveState({ kind: 'idle' });
@@ -229,6 +236,36 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   if (err && !data) return <div className="center">{err}</div>;
   if (!data) return <div className="center">불러오는 중…</div>;
 
+  // 폐사·도태 창: 작성 중이면 등록·빼기, 제출 뒤 담당이면 사진 보완만, 그 밖은 보기만
+  const deathMode = data.canWrite && status === 'draft' ? true
+    : data.canWriteHouse ? 'photo' : 'none';
+  const photoDue = new Set((deaths?.items ?? [])
+    .filter((x) => x.kind === 'mortality' && !x.hasPhoto)
+    .map((x) => `${x.penId ?? ''}|${x.categoryId ?? ''}`));
+  const openDeaths = data.report ? (ri) => setDeathRow(ri) : undefined;
+
+  const deathChanged = ({ add, remove, replace, row }) => {
+    setDeaths((d) => {
+      if (!d) return d;
+      let items = d.items;
+      if (add) items = [...items, add];
+      if (remove) items = items.filter((x) => !(x.kind === remove.kind && x.id === remove.id));
+      if (replace) items = items.map((x) => (x.kind === replace.kind && x.id === replace.id ? replace : x));
+      return { ...d, items };
+    });
+    // 그 줄의 폐사·도태 칸은 서버가 센 값으로 바꾼다 — 화면이 더하지 않는다 (V7)
+    if (row) {
+      setRows((old) => old.map((r) => (
+        String(r.penId ?? '') === String(row.penId ?? '')
+        && String(r.categoryId ?? '') === String(row.categoryId ?? '')
+          ? { ...r, deadHead: row.deadHead, culledHead: row.culledHead } : r)));
+      // 제출을 막는 규칙(음수 재고 등)이 바뀌었을 수 있다 — 조용히 다시 받는다
+      if (data.report) {
+        api.report(houseId, date).then((d) => setViolations(d.violations)).catch(() => {});
+      }
+    }
+  };
+
   const canConfirm = me.user.roles.some((r) => CONFIRMERS.includes(r));
   const canUnconfirm = me.user.roles.some((r) => UNCONFIRMERS.includes(r));
 
@@ -265,7 +302,8 @@ export function DailyReport({ me, houseId, date, onChanged }) {
 
       {narrow && (
         <div className="mobile-note">
-          휴대폰에서는 <b>보기만</b> 됩니다. 입력은 사무실 컴퓨터에서 해 주십시오.
+          휴대폰에서는 숫자를 <b>보기만</b> 합니다. 입력은 사무실 컴퓨터에서 해 주십시오.
+          {deathMode === true && <> <b>폐사·도태</b>는 휴대폰에서 사진과 함께 바로 등록할 수 있습니다.</>}
         </div>
       )}
 
@@ -283,9 +321,19 @@ export function DailyReport({ me, houseId, date, onChanged }) {
              faulty={editable ? faulty : 0} />
 
       {narrow
-        ? <Cards rows={rows} houseName={data.house.name} />
+        ? <Cards rows={rows} houseName={data.house.name} onDeaths={openDeaths} photoDue={photoDue} />
         : <Grid rows={rows} basis={data.house.countBasis} houseName={data.house.name}
-                readOnly={!editable} onChange={change} onRowNoChange={noChange} />}
+                readOnly={!editable} onChange={change} onRowNoChange={noChange}
+                onDeaths={openDeaths} photoDue={photoDue} />}
+
+      {deathRow != null && deaths && rows[deathRow] && (
+        <DeathPanel reportId={data.report.id} row={rows[deathRow]}
+                    title={[rows[deathRow].penCode, rows[deathRow].categoryName]
+                      .filter(Boolean).join(' · ') || data.house.name}
+                    items={deaths.items} reasons={deaths.reasons}
+                    photoStorage={deaths.photoStorage} canEdit={deathMode}
+                    onClose={() => setDeathRow(null)} onChanged={deathChanged} />
+      )}
 
       {err && <div className="notes"><div className="note block">{err}</div></div>}
 
@@ -426,10 +474,10 @@ function Notes({ violations, editable, missing, faulty }) {
 }
 
 /** 좁은 화면 — 돈방마다 지금 몇 마리인지. 돈사 안에서 확인용 */
-function Cards({ rows, houseName }) {
+function Cards({ rows, houseName, onDeaths, photoDue }) {
   return (
     <div className="cards">
-      {rows.map((r) => {
+      {rows.map((r, ri) => {
         const v = calcVariance(r);
         return (
           <div className="card" key={`${r.penId ?? 'x'}-${r.categoryId ?? 'x'}`}>
@@ -442,9 +490,14 @@ function Cards({ rows, houseName }) {
               <span>전입 <b>{num(r.inHead)}</b></span>
               <span>전출 <b>{num(r.outHead) + num(r.internalOutHead)}</b></span>
               <span>판매 <b>{num(r.soldHead)}</b></span>
-              <span>폐사 <b>{num(r.deadHead) + num(r.culledHead)}</b></span>
+              <span>폐사·도태 <b>{num(r.deadHead) + num(r.culledHead)}</b></span>
               {v != null && v !== 0 && <span style={{ color: 'var(--crit)' }}>차이 <b>{v}</b></span>}
             </div>
+            {onDeaths && (
+              <button type="button" className="btn small card-deaths" onClick={() => onDeaths(ri)}>
+                폐사·도태{photoDue?.has(`${r.penId ?? ''}|${r.categoryId ?? ''}`) ? ' · 사진 보완 필요' : ''}
+              </button>
+            )}
           </div>
         );
       })}

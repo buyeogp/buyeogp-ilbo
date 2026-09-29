@@ -67,6 +67,15 @@ const farm = (await admin.query(`select id from app.farm where code='BUYEO'`)).r
 const jadon = (await admin.query(`select id from app.house where code='JADON'`)).rows[0].id;
 const bunman = (await admin.query(`select id from app.house where code='BUNMAN1'`)).rows[0].id;
 
+// 시험이 남긴 것 지우기. 순서가 있다 — 일보를 먼저 지워야 한다.
+// 폐사·도태를 먼저 지우면 원장 재계산이 **확정된** 시험 일보 행을 고치려다 P4 에 걸린다.
+// 원장은 시험 계정을 작성자로 물고 있으므로 계정보다는 먼저 지운다.
+async function clearTestData() {
+  await admin.query(`delete from app.daily_report where report_date >= date '2031-01-01'`);
+  await admin.query(`delete from app.mortality where event_date >= date '2031-01-01'`);
+  await admin.query(`delete from app.culling where event_date >= date '2031-01-01'`);
+}
+await clearTestData();          // 지난번 시험이 중간에 멈췄을 수 있다
 await admin.query(`delete from sec.app_user where login_id in ('smoke.lead','smoke.hq','smoke.new','smoke.bad')`);
 const lead = (await admin.query(
   `insert into sec.app_user (login_id,name,password_hash,status)
@@ -167,6 +176,57 @@ try {
     mine.body.rows.every((r, i) => r.expectedOpeningHead === after.body.rows[i].openingHead),
     `${mine.body.rows.filter((r, i) => r.expectedOpeningHead !== after.body.rows[i].openingHead).length}행 불일치`);
 
+  // ── 폐사·도태 (§4.7 · V7 · V10) ──────────────────────────────────
+  // 일보의 폐사·도태 칸은 원장의 합이다. 넣고 빼면 그 줄이 따라 바뀌어야 한다.
+  console.log('\n━━ 폐사·도태 ━━');
+  {
+    const D = `/api/reports/${reportId}/deaths`;
+    const row = { penId: rows[0].penId, categoryId: rows[0].categoryId };
+    const list = await call('GET', D);
+    ck('사유 6가지가 온다', list.body?.reasons?.length === 6, `실제 ${list.body?.reasons?.length}`);
+
+    const noPhoto = await call('POST', D, { kind: 'mortality', ...row, headCount: 2, reasonCode: '03' });
+    ck('사진도 사유도 없으면 폐사 등록 거부 (V10)', noPhoto.status === 422, `실제 ${noPhoto.status}`);
+
+    const waived = await call('POST', D, { kind: 'mortality', ...row, headCount: 2, reasonCode: '03',
+      photoWaiver: '휴대폰 배터리 없음' });
+    ck('사진 없음 사유로 등록', waived.status === 201, JSON.stringify(waived.body)?.slice(0, 90));
+    ck('그 줄 폐사가 2 가 된다 (V7)', waived.body?.row?.deadHead === 2, JSON.stringify(waived.body?.row));
+    ck('24시간 보완 기한이 붙는다', !!waived.body?.item?.photoDueAt);
+
+    const g = await call('GET', `/api/reports/${jadon}/${TEST_DATE}`);
+    ck('일보 당일두수가 폐사만큼 준다', g.body.rows[0].closingHead === prev + 10 - 2,
+      `실제 ${g.body.rows[0].closingHead}`);
+
+    const other6 = await call('POST', D, { kind: 'culling', ...row, headCount: 1, reasonCode: '06' });
+    ck('「기타」는 사유를 적어야 한다', other6.status === 422, `실제 ${other6.status}`);
+    const wrongScope = await call('POST', D, { kind: 'culling', ...row, headCount: 1, reasonCode: '03' });
+    ck('압사는 도태 사유가 아니다', wrongScope.status === 422, `실제 ${wrongScope.status}`);
+    const cull = await call('POST', D, { kind: 'culling', ...row, headCount: 1, reasonCode: '05' });
+    ck('도태 등록', cull.status === 201 && cull.body?.row?.culledHead === 1, JSON.stringify(cull.body?.row));
+
+    // 사진 — 그림 파일을 그대로 올리고 받은 키로 등록한다
+    const img = Buffer.from('ffd8ffe000104a464946000101', 'hex');
+    const up = await fetch(base + D + '/photo', {
+      method: 'POST', headers: { 'content-type': 'image/jpeg', cookie }, body: img });
+    const upBody = await up.json().catch(() => null);
+    ck('사진 올리기', up.status === 201 && !!upBody?.photoKey, `실제 ${up.status} ${JSON.stringify(upBody)}`);
+    const withPhoto = await call('POST', D, { kind: 'mortality', ...row, headCount: 1, reasonCode: '01',
+      photoKey: upBody?.photoKey });
+    ck('사진과 함께 폐사 등록', withPhoto.status === 201 && withPhoto.body?.item?.hasPhoto === true,
+      JSON.stringify(withPhoto.body)?.slice(0, 90));
+    const seen = await fetch(`${base}${D}/mortality/${withPhoto.body?.item?.id}/photo`, { headers: { cookie } });
+    const seenBuf = Buffer.from(await seen.arrayBuffer());
+    ck('올린 사진을 그대로 돌려준다', seen.status === 200 && seenBuf.equals(img), `실제 ${seen.status}`);
+
+    const del = await call('DELETE', `${D}/mortality/${waived.body?.item?.id}`);
+    ck('빼면 그 줄 폐사가 준다', del.status === 200 && del.body?.row?.deadHead === 1, JSON.stringify(del.body));
+
+    const back = await call('PUT', `/api/reports/${reportId}/rows`, { rows });
+    ck('폐사가 있어도 제출 가능 (원장과 일보가 맞다)', back.body?.canSubmit === true,
+      JSON.stringify(back.body?.violations)?.slice(0, 120));
+  }
+
   // 규칙 위반이 실제로 막히는지
   const bogus = await call('PUT', `/api/reports/${reportId}/rows`,
     { rows: [{ penId: rows[1].penId, inHead: 0, outHead: 999 }] });
@@ -183,6 +243,9 @@ try {
   const lockedEdit = await call('PUT', `/api/reports/${reportId}/rows`,
     { rows: [{ penId: rows[0].penId, inHead: 99 }] });
   ck('제출 후 수정 거부', lockedEdit.status === 409, `실제 ${lockedEdit.status}`);
+  const lockedDeath = await call('POST', `/api/reports/${reportId}/deaths`,
+    { kind: 'culling', penId: rows[0].penId, headCount: 1, reasonCode: '05' });
+  ck('제출 후 폐사·도태 추가 거부', lockedDeath.status === 409, `실제 ${lockedDeath.status}`);
 
   cookie = '';
   await call('POST', '/api/auth/login', { loginId: 'smoke.hq', password: TEST_PW });
@@ -353,7 +416,7 @@ try {
   ck('로그아웃 후 401', (await call('GET', '/api/auth/me')).status === 401);
 
 } finally {
-  await admin.query(`delete from app.daily_report where report_date >= date '2031-01-01'`);
+  await clearTestData();
   await admin.query(`delete from sec.app_user where login_id in ('smoke.lead','smoke.hq','smoke.new','smoke.bad')`);
   // 감사로그는 지우지 않는다 — 지울 수 없다. append-only 규칙이 DELETE 를
   // 무동작으로 만든다. 시험이 남긴 줄도 그대로 남는 것이 맞다 (§6.6).

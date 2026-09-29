@@ -72,6 +72,15 @@ if (drop) {
     const drafts = await client.query(
       `DELETE FROM app.daily_report WHERE status = 'draft' AND author_id = ANY($1)
        RETURNING report_date::text AS d`, [ids]);
+    // 폐사·도태 원장도 작성자로 계정을 문다. 일보를 먼저 지웠으므로 원장을 지워도
+    // 재계산할 일보 행이 없다 (순서를 바꾸면 확정 일보 행을 건드려 P4 에 걸린다)
+    const dead = await client.query(
+      'DELETE FROM app.mortality WHERE created_by = ANY($1) RETURNING id', [ids]);
+    const culled = await client.query(
+      'DELETE FROM app.culling WHERE created_by = ANY($1) RETURNING id', [ids]);
+    if (dead.rowCount + culled.rowCount) {
+      console.log(`폐사 ${dead.rowCount}건 · 도태 ${culled.rowCount}건 삭제`);
+    }
     const r = await client.query(
       `DELETE FROM sec.app_user WHERE id = ANY($1) RETURNING login_id`, [ids]);
     await client.query('COMMIT');

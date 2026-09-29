@@ -90,9 +90,6 @@ export const TG_SECTIONS = [
       { table: {
         head: [t('기능', 'Feature'), t('테스트 중에는', 'During the test')],
         rows: [
-          [t('*폐사·도태 등록* (사진 첨부)', '*Recording deaths and culls* (with photo)'),
-           t('폐사·도태 칸이 *늘 0* 입니다. 폐사가 있던 날은 *당일두수가 엑셀보다 그만큼 많게* 나옵니다 — *오류가 아닙니다.* 그 줄 *비고*에 「폐사 2」처럼 적어 주십시오.',
-             'The deaths/culls column is *always 0*. On days with deaths, *the closing count is higher than Excel by that many* — *not an error.* Write e.g. "폐사 2" in that row’s *note*.'), 'you'],
           [t('*일보 PDF 출력·인쇄* 단추', '*Print / PDF download* of the report'),
            t('없습니다. 종이 일보는 *지금처럼 엑셀에서* 출력하십시오. (서버에서 PDF 를 만드는 부분은 준비돼 있고 단추만 남았습니다)',
              'Not yet. Print the paper report *from Excel as now*. (The server side that makes the PDF is ready; only the button is left.)'), 'you'],
@@ -185,7 +182,21 @@ export const TG_SECTIONS = [
       { p: t('예: 전입 1, 전출 1 을 넣고 *Ctrl + Enter* → 내부이동·판매가 0 이 되고 빨간 선이 사라집니다. 아무 변동 없는 줄은 *Ctrl + Enter 한 번*이면 끝납니다.',
              'Example: type in 1, out 1, then *Ctrl + Enter* → internal and sold become 0 and the red line disappears. A row with no change at all takes *one Ctrl + Enter*.') },
 
-      { h3: t('4. 숫자가 틀리면 빨갛게 나옵니다', '4. Wrong numbers turn red') },
+      { h3: t('4. 폐사·도태는 그 칸을 눌러 등록합니다', '4. Record deaths and culls by clicking that cell') },
+      { p: t('표의 *폐사·도태* 칸(점선 밑줄)을 누르면 그 줄의 등록 창이 열립니다. 숫자를 칸에 직접 치지 않습니다 — *등록한 기록의 합*이 칸에 들어갑니다.',
+             'Click the *폐사·도태* cell (dotted underline) to open the form for that row. You do not type the number into the cell — the cell shows *the total of what you record*.') },
+      { ol: [
+        t('*폐사* 또는 *도태*를 고르고 두수를 넣습니다.', 'Choose *폐사* (death) or *도태* (cull) and enter the head count.'),
+        t('*사유*를 고릅니다 (01 위축 · 02 표피염 · 03 압사 · 04 아사 · 05 도태 · 06 기타). 「기타」는 사유를 적어야 합니다.',
+          'Pick a *reason* (01–06). "06 기타" (other) needs a written reason.'),
+        t('폐사는 *사진이 있어야* 등록됩니다. 못 찍었으면 「사진을 못 찍었습니다」에 표시하고 사유를 적습니다 — *24시간 안에* 사진을 붙여야 합니다. 사진이 빠진 줄은 칸 오른쪽 위에 *주황 점*이 보입니다.',
+          'A death *needs a photo*. If you could not take one, tick "사진을 못 찍었습니다" and write why — attach the photo *within 24 hours*. Rows missing a photo show an *orange dot* in the corner.'),
+        t('*휴대폰*으로 이 사이트를 열면 돈방 카드마다 「폐사·도태」 단추가 있고, 사진 칸이 *카메라를 바로 엽니다.* 돈방에서 찍어 바로 올리면 카톡으로 보낼 필요가 없습니다.',
+          'On a *phone*, each pen card has a "폐사·도태" button and the photo field *opens the camera directly.* Take and upload it in the pen — no need to send it by KakaoTalk.'),
+      ] },
+      { p: t('잘못 넣었으면 창에서 *빼기*를 누릅니다 (제출 전까지만).', 'If you made a mistake, press *빼기* (remove) in the form — until you submit.') },
+
+      { h3: t('5. 숫자가 틀리면 빨갛게 나옵니다', '5. Wrong numbers turn red') },
       { figure: {
         src: '/help/red.png',
         alt: t('빨간 칸과 위쪽 안내', 'A red cell and the message at the top'),
@@ -205,7 +216,7 @@ export const TG_SECTIONS = [
           'A row with a red cell *is not saved.* It saves as soon as you fix it. Watch the save state at the bottom right.'),
       ] },
 
-      { h3: t('5. 다 넣었으면 「제출」', '5. When everything is in, press "제출" (Submit)') },
+      { h3: t('6. 다 넣었으면 「제출」', '6. When everything is in, press "제출" (Submit)') },
       { p: t('빨간 선과 빨간 칸이 모두 없어지면 오른쪽 아래 *제출*이 눌립니다.',
              'When all red lines and red cells are gone, *제출* at the bottom right can be pressed.') },
       { warn: t('*제출하면 팀장은 더 고칠 수 없습니다.* 제출 전에 엑셀과 한 번 더 맞춰 보십시오. 제출 뒤에 틀린 것을 찾으면 *고치지 말고 알려 주십시오* — 어느 돈사·날짜·줄인지만 적어 주시면 됩니다.',
@@ -215,7 +226,7 @@ export const TG_SECTIONS = [
       { ol: [
         t('돈방·축종 줄이 *실제 돈사와 같습니까?* 없는 돈방이나 빠진 돈방이 있으면 알려 주십시오.',
           'Do the pen and category rows *match the real house?* Tell us about missing or extra pens.'),
-        t('같은 숫자를 넣었을 때 *당일두수와 합계가 엑셀과 같습니까?*',
+        t('폐사·도태까지 같은 숫자를 넣었을 때 *당일두수와 합계가 엑셀과 같습니까?*',
           'With the same numbers, are *the closing counts and totals the same as Excel?*'),
         t('*전일두수*가 어제 엑셀의 당일두수와 같습니까? (아래 「과거 엑셀 자료」를 먼저 읽어 주십시오)',
           'Is the *opening count* the same as yesterday’s Excel closing? (Read "Past Excel data" below first)'),

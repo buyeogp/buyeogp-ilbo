@@ -51,7 +51,8 @@ export function rowFaults(r) {
 
 const digits = (s) => s.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
 
-export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange }) {
+export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange,
+                       onDeaths, photoDue }) {
   const ref = useRef(null);
   const [cur, setCur] = useState(-1);     // 커서가 있는 행 — 그 돈방을 밝힌다
 
@@ -231,7 +232,16 @@ export function Grid({ rows, basis, houseName, readOnly, onChange, onRowNoChange
                 {cell(r, ri, 'outHead', 1, faults)}
                 {cell(r, ri, 'internalOutHead', 2, faults)}
                 {cell(r, ri, 'soldHead', 3, faults)}
-                <td className="readonly">{num(r.deadHead) + num(r.culledHead)}</td>
+                {onDeaths ? (
+                  // 폐사·도태는 여기서 친다 — 칸이 아니라 등록 창이다 (V7: 사유별 원장의 합)
+                  <td className={photoDue?.has(`${r.penId ?? ''}|${r.categoryId ?? ''}`)
+                    ? 'readonly deaths due' : 'readonly deaths'}>
+                    <button type="button" className="dcell" onClick={() => onDeaths(ri)}
+                            title={readOnly ? '폐사·도태 기록 보기' : '눌러서 폐사·도태 등록'}>
+                      {num(r.deadHead) + num(r.culledHead)}
+                    </button>
+                  </td>
+                ) : <td className="readonly">{num(r.deadHead) + num(r.culledHead)}</td>}
                 <td className="readonly strong"
                     style={closing < 0 ? { color: 'var(--crit)', background: 'var(--crit-w)' }
                                        : undefined}>{closing}</td>

@@ -184,6 +184,8 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
     })),
     canWrite: canWriteHouse(req.user, out.house.id)
       && (!out.report || out.report.status === 'draft'),
+    // 제출 뒤에도 담당 팀장은 폐사 사진을 보완할 수 있다 (V10 24시간)
+    canWriteHouse: canWriteHouse(req.user, out.house.id),
   });
 }));
 

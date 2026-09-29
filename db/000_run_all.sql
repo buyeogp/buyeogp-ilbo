@@ -29,6 +29,7 @@ BEGIN;
 \ir 021_admin_grants.sql
 \ir 022_timezone.sql
 \ir 023_v5_message.sql
+\ir 024_deaths_before_row.sql
 
 COMMIT;
 

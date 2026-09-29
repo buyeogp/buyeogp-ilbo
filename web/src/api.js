@@ -13,13 +13,16 @@ export class ApiError extends Error {
 }
 
 async function call(method, path, body) {
+  // 사진은 파일 그대로 보낸다 (Blob). 나머지는 JSON
+  const raw = body instanceof Blob;
   let res;
   try {
     res = await fetch('/api' + path, {
       method,
       credentials: 'same-origin',
-      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined ? undefined
+        : { 'content-type': raw ? (body.type || 'image/jpeg') : 'application/json' },
+      body: body === undefined ? undefined : (raw ? body : JSON.stringify(body)),
     });
   } catch {
     throw new ApiError(0, 'offline', '서버에 닿지 않습니다. 잠시 뒤에 다시 해 주십시오.');
@@ -48,6 +51,15 @@ export const api = {
   submit: (reportId) => call('POST', `/reports/${reportId}/submit`),
   confirm: (reportId) => call('POST', `/reports/${reportId}/confirm`),
   unconfirm: (reportId) => call('POST', `/reports/${reportId}/unconfirm`),
+
+  // 폐사·도태 (§4.7) — 일보의 폐사·도태 칸은 여기서만 채워진다
+  deaths: (reportId) => call('GET', `/reports/${reportId}/deaths`),
+  deathAdd: (reportId, body) => call('POST', `/reports/${reportId}/deaths`, body),
+  deathDel: (reportId, kind, id) => call('DELETE', `/reports/${reportId}/deaths/${kind}/${id}`),
+  photoUp: (reportId, blob) => call('POST', `/reports/${reportId}/deaths/photo`, blob),
+  photoAttach: (reportId, id, photoKey) =>
+    call('POST', `/reports/${reportId}/deaths/mortality/${id}/photo`, { photoKey }),
+  photoSrc: (reportId, id) => `/api/reports/${reportId}/deaths/mortality/${id}/photo`,
 
   // 계정·담당 관리 (§6.1 / §6.3)
   adminOverview: () => call('GET', '/admin/overview'),

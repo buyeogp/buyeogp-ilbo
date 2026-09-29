@@ -73,6 +73,19 @@ export const config = {
     remindTime: env.REPORT_REMIND_TIME ?? '18:00',
   },
 
+  // 사진 저장소 — Supabase Storage 의 S3 접속 키 (§4.7 V10).
+  // service_role 키가 아니다: 그 키는 DB 까지 RLS 를 건너뛰어 연다. S3 키는 저장소만 연다.
+  // 비어 있으면 개발 PC 는 api/out/photos 에 두고, 운영은 사진 올리기를 막는다(사유 등록은 된다).
+  photos: {
+    endpoint: env.SUPABASE_S3_ENDPOINT
+      || (env.SUPABASE_URL ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/s3` : ''),
+    region: env.SUPABASE_S3_REGION || 'ap-northeast-2',
+    keyId: env.SUPABASE_S3_ACCESS_KEY_ID ?? '',
+    secret: env.SUPABASE_S3_SECRET_ACCESS_KEY ?? '',
+    bucket: 'mortality-photo',
+    get configured() { return !!(this.endpoint && this.keyId && this.secret); },
+  },
+
   sentry: {
     dsn: env.SENTRY_DSN ?? '',
     environment: env.SENTRY_ENVIRONMENT || env.APP_ENV || 'development',
