@@ -114,6 +114,7 @@ function ScopeGrid({ data, from, run, busy }) {
   const [ask, setAsk] = useState(null);       // 빼기를 묻고 있는 칸
   const [pending, setPending] = useState(null);
   const [flash, setFlash] = useState(null);   // 방금 바뀐 칸 — 잠깐 밝혀 둔다
+  const [done, setDone] = useState(null);     // 방금 바뀐 칸 옆 알림 {key, add, user, house}
 
   useEffect(() => {
     if (!ask) return;
@@ -135,7 +136,14 @@ function ScopeGrid({ data, from, run, busy }) {
     const r = await run(() => (has ? api.scopeEnd(user.id, house.id, from)
                                    : api.scopeAdd(user.id, house.id, from)));
     setPending(null);
-    if (r) { setFlash(key); setTimeout(() => setFlash((f) => (f === key ? null : f)), 1800); }
+    if (r) {
+      // 누른 자리에서 결과를 알려 준다. 모달은 닫기를 눌러야 해서 여러 칸을 넣을 때 흐름이 끊긴다 —
+      // 저절로 사라지는 말풍선으로 둔다. 같은 내용은 위쪽 알림 줄에도 남는다
+      setFlash(key);
+      setDone({ key, add: !has, user: user.name, house: house.name });
+      setTimeout(() => setFlash((f) => (f === key ? null : f)), 1800);
+      setTimeout(() => setDone((d) => (d?.key === key ? null : d)), 2800);
+    }
   };
 
   const press = (user, house) => {
@@ -195,6 +203,15 @@ function ScopeGrid({ data, from, run, busy }) {
                           {pending === key ? '…' : s ? (soon ? '○' : '●') : ''}
                           {soon && <small>{md(s.validFrom)}부터</small>}
                         </button>
+                        {done?.key === key && !ask && (
+                          <div className={up ? 'cell-ask done up' : 'cell-ask done'} role="status">
+                            <p>
+                              <b>{done.house}</b> 이(가) <b>{done.user}</b> 님
+                              {done.add ? ' 담당으로 들어갔습니다.' : ' 담당에서 빠졌습니다.'}
+                            </p>
+                            <p className="when">{later ? `${from} 부터` : '오늘부터'}</p>
+                          </div>
+                        )}
                         {ask === key && (
                           <div className={up ? 'cell-ask up' : 'cell-ask'} role="dialog"
                                aria-label={`${p.name} 님을 ${o.name} 담당에서 빼기`}>

@@ -555,6 +555,10 @@ td.pick.asking .chip { box-shadow: inset 0 0 0 2px var(--crit); }
 }
 .cell-ask.up { top: auto; bottom: calc(100% + 4px); }
 .cell-ask.up::before { top: auto; bottom: -6px; transform: translateX(-50%) rotate(225deg); }
+.cell-ask.done { border-color: var(--accent); pointer-events: none; animation: ask-in .15s ease-out; }
+.cell-ask.done::before { border-color: var(--accent); }
+.cell-ask.done .when { margin-bottom: 0; }
+@keyframes ask-in { from { opacity: 0; } to { opacity: 1; } }
 .cell-ask p { margin: 0 0 4px; }
 .cell-ask .when { color: var(--ink-3); font-size: 11.5px; margin-bottom: 8px; }
 .cell-ask .acts { display: flex; gap: 6px; justify-content: flex-end; }
