@@ -91,8 +91,8 @@ export const TG_SECTIONS = [
         head: [t('기능', 'Feature'), t('테스트 중에는', 'During the test')],
         rows: [
           [t('*일보 PDF 출력·인쇄* 단추', '*Print / PDF download* of the report'),
-           t('없습니다. 종이 일보는 *지금처럼 엑셀에서* 출력하십시오. (서버에서 PDF 를 만드는 부분은 준비돼 있고 단추만 남았습니다)',
-             'Not yet. Print the paper report *from Excel as now*. (The server side that makes the PDF is ready; only the button is left.)'), 'you'],
+           t('없습니다. 종이 일보는 *지금처럼 엑셀에서* 출력하십시오. 테스트 기간에 만들어 정식 가동 전에 붙입니다.',
+             'Not yet. Print the paper report *from Excel as now*. It will be built during the test and added before go-live.'), 'you'],
           [t('*제출·확정한 일보 고치기* (정정전표)', '*Correcting a submitted/confirmed report* (correction voucher)'),
            t('없습니다. 제출 뒤 틀린 것을 찾으면 *알려 주십시오.* 테스트 기간에는 개발자가 정리합니다.',
              'Not yet. If you find a mistake after submitting, *tell us.* During the test the developer fixes it.'), 'you'],
