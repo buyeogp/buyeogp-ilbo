@@ -10,6 +10,7 @@ import { api, today } from './api.js';
 import { setObserveUser } from './observe.js';
 import { Login } from './pages/Login.jsx';
 import { DailyReport } from './pages/DailyReport.jsx';
+import { PartReport, PARTS } from './pages/PartReport.jsx';
 import { HouseStatus } from './pages/HouseStatus.jsx';
 import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
@@ -67,9 +68,13 @@ function Shell({ me, onSignedOut }) {
     if (type === 'bye') onSignedOut();
   }), [date, loadStatus, onSignedOut]);
 
-  const home = houses[0]
-    ? `/report/${houses[0].houseId}/${date}`
-    : (myHouses[0] ? `/report/${myHouses[0].houseId}/${date}` : `/status/${date}`);
+  // 첫 돈사가 파트에 들어 있으면(배두 팀장 — 순치사부터) 파트 화면부터 연다
+  const homePart = houses[0] && Object.entries(PARTS).find(([, p]) => p.codes.includes(houses[0].code));
+  const home = homePart
+    ? `/part/${homePart[0]}/${date}`
+    : houses[0]
+      ? `/report/${houses[0].houseId}/${date}`
+      : (myHouses[0] ? `/report/${myHouses[0].houseId}/${date}` : `/status/${date}`);
 
   return (
     <div className="shell">
@@ -85,6 +90,9 @@ function Shell({ me, onSignedOut }) {
           <Route path="/report/:houseId/:date"
                  element={<ReportRoute me={me} onDate={setDate}
                                        onChanged={() => loadStatus(date)} />} />
+          <Route path="/part/:part/:date"
+                 element={<PartRoute me={me} houses={houses} onDate={setDate}
+                                     onChanged={() => loadStatus(date)} />} />
           <Route path="/status/:date"
                  element={<StatusRoute me={me} onDate={setDate} />} />
           <Route path="/admin" element={<Admin me={me} />} />
@@ -103,7 +111,6 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
   const { houseId } = useParams();
   // 「관리자」는 직책이 아니라 부여되는 권한이다 — 팀장이 함께 가질 수 있다
   const canAdmin = me.user.roles.some((r) => r === 'admin' || HQ.includes(r));
-
   const loc = useLocation();
 
   async function signOut() {
@@ -118,6 +125,21 @@ function TopBar({ me, houses, date, farmWide, onSignedOut }) {
       <span className="brand">부여GP 일보</span>
 
       <nav className="house-tabs">
+        {/* 파트 — 묶인 돈사를 한 페이지에 (종부·임신 파트) */}
+        {Object.entries(PARTS).map(([k, p]) => {
+          const inPart = houses.filter((h) => p.codes.includes(h.code));
+          if (!inPart.length) return null;
+          const s = inPart.map((h) => h.status);
+          const all = s.every((x) => x === 'confirmed' || x === 'locked') ? 'confirmed'
+            : s.some((x) => x) ? 'draft' : null;
+          return (
+            <button key={k} className="part-tab"
+                    aria-current={loc.pathname.startsWith(`/part/${k}/`)}
+                    onClick={() => nav(`/part/${k}/${date}`)}>
+              <span className={dot(all)} />{p.name}
+            </button>
+          );
+        })}
         {houses.map((h) => (
           <button key={h.houseId}
                   aria-current={String(h.houseId) === String(houseId)}
@@ -159,6 +181,14 @@ function ReportRoute({ me, onDate, onChanged }) {
   useEffect(() => { onDate(date); }, [date, onDate]);
   return <DailyReport key={`${houseId}-${date}`} me={me} houseId={houseId} date={date}
                       onChanged={onChanged} />;
+}
+
+function PartRoute({ me, houses, onDate, onChanged }) {
+  const { part, date } = useParams();
+  useEffect(() => { onDate(date); }, [date, onDate]);
+  // 날짜가 바뀌면 새로 그린다 — 네 돈사가 알려 준 상태를 이전 날짜 것과 섞지 않게
+  return <PartReport key={`${part}-${date}`} me={me} part={part} date={date} houses={houses}
+                     onChanged={onChanged} />;
 }
 
 function StatusRoute({ me, onDate }) {

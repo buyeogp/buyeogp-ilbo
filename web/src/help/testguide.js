@@ -149,6 +149,8 @@ export const TG_SECTIONS = [
       { h3: t('1. 돈사를 고르고 「일보 시작」', '1. Pick your house and press "일보 시작"') },
       { p: t('위쪽 돈사 이름 중 *내 돈사*를 누릅니다. 오늘 날짜가 열립니다. 「일보 시작」을 누르기 전에는 칸에 글씨가 써지지 않습니다.',
              'Click *your house* in the row of house names at the top. Today’s date opens. You cannot type until you press "일보 시작".') },
+      { p: t('*순치사 · 종부사 · 임신1동 · 임신2동*은 위쪽 맨 앞 *「종부·임신 파트」* 를 누르면 *한 페이지*에 위에서 아래로 이어 나옵니다(종이 파트일보 순서). 맨 위 *합계표*에 네 돈사의 전일 · 전입 · 전출 · 내부이동 · 판매 · 폐사·도태 · 당일과 남은 일(빈 줄 · 고칠 줄 · 사진 보완)이 한눈에 나옵니다 — 돈사끼리 옮긴 두수(한쪽 전출 ↔ 다른 쪽 전입)를 여기서 맞춰 봅니다. 돈사 이름을 누르면 그 돈사로 내려갑니다. 제출도 위쪽 *「네 돈사 한 번에 제출」* 하나로 합니다(하나라도 걸리면 아무것도 제출되지 않습니다).',
+             '*순치사 · 종부사 · 임신1동 · 임신2동* appear *on one page*, top to bottom (the paper part-report order), when you press *"종부·임신 파트"* at the front of the top bar. The *summary table* at the top shows each house’s opening · in · out · internal · sold · deaths/culls · closing and what is left (empty rows · rows to fix · photos). Check pigs moved between houses (out on one ↔ in on another) there. Click a house name to jump to it. Submit with the one *"네 돈사 한 번에 제출"* button at the top (if any one fails, nothing is submitted).') },
       { figure: {
         src: '/help/notstarted.png',
         alt: t('아직 시작하지 않은 일보', 'A report not started yet'),
@@ -195,11 +197,13 @@ export const TG_SECTIONS = [
       { p: t('표의 *폐사·도태* 칸(점선 밑줄)을 누르면 그 줄의 등록 창이 열립니다. 숫자를 칸에 직접 치지 않습니다 — *등록한 기록의 합*이 칸에 들어갑니다.',
              'Click the *폐사·도태* cell (dotted underline) to open the form for that row. You do not type the number into the cell — the cell shows *the total of what you record*.') },
       { ol: [
-        t('*폐사* 또는 *도태*를 고르고 두수를 넣습니다. 모돈처럼 번호가 있으면 *이각번호*도 적습니다.',
-          'Choose *폐사* (death) or *도태* (cull) and enter the head count. Add the *ear tag* if the pig has one (e.g. a sow).'),
-        t('*사유*를 고릅니다 (01 위축 · 02 표피염 · 03 압사 · 04 아사 · 05 도태 · 06 기타). 「기타」는 사유를 적어야 합니다.',
-          'Pick a *reason* (01–06). "06 기타" (other) needs a written reason.'),
-        t('폐사는 *사진이 있어야* 등록됩니다 (도태는 없어도 됩니다). 못 찍었으면 「사진을 못 찍었습니다」에 표시하고 사유를 적습니다 — *24시간 안에* 사진을 붙여야 합니다. 사진이 빠진 줄은 칸 오른쪽 위에 *주황 점*이 보입니다.',
+        t('*폐사* 또는 *도태*를 고릅니다. 모돈처럼 번호가 있으면 *이각번호*도 적습니다.',
+          'Choose *폐사* (death) or *도태* (cull). Add the *ear tag* if the pig has one (e.g. a sow).'),
+        t('*사유마다 두수*를 넣습니다 (01 위축 · 02 표피염 · 03 압사 · 04 아사 · 05 도태 · 06 기타). 한 방에 사유가 섞였으면 *한 번에* 나눠 넣습니다 — 예: 1-1방 포유자돈 압사 *3* · 아사 *2* → 「폐사 5두 등록 (압사 3 · 아사 2)」. 「기타」는 사유를 적어야 합니다.',
+          'Enter *a count per reason* (01–06). If one pen has mixed reasons, split them *in one go* — e.g. pen 1-1 suckling piglets crushed *3* · starved *2* → "폐사 5두 등록 (압사 3 · 아사 2)". "06 기타" needs a written reason.'),
+        t('*분만1·2동 포유자돈 · 이유자돈* 폐사는 *사진을 받지 않습니다* — 사진 칸이 나오지 않고 보완 기한도 없습니다. 포유모돈은 사진을 받습니다.',
+          '*Suckling and weaned piglet deaths in 분만1·2동* take *no photo* — no photo field and no deadline. Nursing sows still need one.'),
+        t('그 밖의 폐사는 *사진이 있어야* 등록됩니다 (도태는 없어도 됩니다). 못 찍었으면 「사진을 못 찍었습니다」에 표시하고 사유를 적습니다 — *24시간 안에* 사진을 붙여야 합니다. 사진이 빠진 줄은 칸 오른쪽 위에 *주황 점*이 보입니다.',
           'A death *needs a photo* (a cull does not). If you could not take one, tick "사진을 못 찍었습니다" and write why — attach the photo *within 24 hours*. Rows missing a photo show an *orange dot* in the corner.'),
         t('사진은 나중에 붙일 수 있습니다: 그 칸을 다시 눌러 기록 옆 *「사진 붙이기」*. 두수가 바뀌지 않으므로 *제출한 뒤에도* 됩니다.',
           'You can attach the photo later: click the cell again and press *"사진 붙이기"* next to the record. The count does not change, so this works *even after submitting*.'),
@@ -210,8 +214,8 @@ export const TG_SECTIONS = [
              'If you made a mistake, press *빼기* then *뺍니다* in the form — until you submit. On a phone you cannot enter numbers, *only deaths and culls*.') },
       { p: t('폐사·도태가 있으면 표 위에 *「오늘 폐사 N두 · 도태 M두」* 줄이 생깁니다. *「일지 · 사진 보기」* 로 그날 기록을 사진과 함께 모아 보고, 사진을 누르면 크게 보입니다.',
              'When there are deaths or culls, a line *"오늘 폐사 N두 · 도태 M두"* appears above the table. Use *"일지 · 사진 보기"* to see the day’s records with photos; click a photo to enlarge it.') },
-      { p: t('*해 보실 것*: 폐사 한 건을 사진 없이(사유만) 넣고, 나중에 「사진 붙이기」로 보완해 보십시오. 휴대폰으로도 한 건 넣어 보십시오.',
-             '*Please try*: add one death without a photo (reason only) and attach the photo later with "사진 붙이기". Also try adding one from a phone.') },
+      { p: t('*해 보실 것*: 폐사 한 건을 사진 없이(사유만) 넣고, 나중에 「사진 붙이기」로 보완해 보십시오. 휴대폰으로도 한 건 넣어 보십시오. *분만사*는 포유자돈 한 방에 압사 · 아사를 나눠 한 번에 넣어 보십시오.',
+             '*Please try*: add one death without a photo (reason only) and attach the photo later with "사진 붙이기". Also try adding one from a phone. In *분만사*, add crushed and starved piglets for one pen in one go.') },
 
       { h3: t('5. 숫자가 틀리면 빨갛게 나옵니다', '5. Wrong numbers turn red') },
       { figure: {

@@ -45,8 +45,8 @@ export function HouseStatus({ date }) {
   const per = (id, k) => deaths.filter((x) => String(x.houseId) === String(id) && x.kind === k)
     .reduce((a, x) => a + x.headCount, 0);
   const dueOf = (id) => deaths.filter((x) => String(x.houseId) === String(id)
-    && x.kind === 'mortality' && !x.hasPhoto).length;
-  const dueAll = deaths.filter((x) => x.kind === 'mortality' && !x.hasPhoto).length;
+    && x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt).length;
+  const dueAll = deaths.filter((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt).length;
 
   return (
     <>

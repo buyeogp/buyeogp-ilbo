@@ -7,6 +7,9 @@
  * 폐사는 사진이 있어야 끝난다(V10). 휴대폰에서 열면 사진 칸이 카메라를 바로 연다 —
  * 카톡으로 사진을 보내다 빠지던 것(D11)이 이 창이 막으려는 것이다.
  * 못 찍었으면 그 사유를 적고 24시간 안에 보완한다.
+ * 분만1·2동 포유자돈·이유자돈은 사진을 받지 않는다(030) — 사진 칸이 아예 없다.
+ *
+ * 사유마다 두수를 적는다(「압사 3 · 아사 2」). 등록 한 번에 사유별 기록이 각각 생긴다.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api.js';
@@ -35,11 +38,10 @@ const hhmm = (iso) => {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
+export function DeathPanel({ reportId, row, title, items, reasons, photoStorage, photoExempt,
                              canEdit, onClose, onChanged }) {
   const [kind, setKind] = useState('mortality');
-  const [head, setHead] = useState('1');
-  const [reason, setReason] = useState('');
+  const [counts, setCounts] = useState({});        // 사유 코드 → 두수(문자열)
   const [reasonNote, setReasonNote] = useState('');
   const [earTag, setEarTag] = useState('');
   const [note, setNote] = useState('');
@@ -58,7 +60,8 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
     && String(x.categoryId ?? '') === String(row.categoryId ?? '')), [items, row]);
 
   const choices = reasons.filter((r) => r.kinds.includes(kind));
-  const picked = reasons.find((r) => r.code === reason);
+  // 사진을 받는가 — 폐사이고, 이 줄이 예외(분만사 자돈)가 아닐 때만
+  const needPhoto = kind === 'mortality' && !photoExempt;
 
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape' && !view) onClose(); };
@@ -67,10 +70,8 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
   }, [onClose, view]);
   useEffect(() => { boxRef.current?.focus(); }, []);
 
-  // 사유는 종류마다 다르다 (압사는 폐사만, 도태는 도태만)
-  useEffect(() => {
-    if (reason && !reasons.find((r) => r.code === reason)?.kinds.includes(kind)) setReason('');
-  }, [kind, reason, reasons]);
+  // 사유는 종류마다 다르다 (압사는 폐사만, 도태는 도태만) — 종류를 바꾸면 적던 두수를 비운다
+  useEffect(() => { setCounts({}); setReasonNote(''); }, [kind]);
 
   useEffect(() => () => { if (photo?.url) URL.revokeObjectURL(photo.url); }, [photo]);
 
@@ -83,12 +84,15 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
     setNoPhoto(false);
   };
 
-  const n = Number(head);
+  const lines = choices
+    .map((r) => ({ r, n: Number(counts[r.code] || 0) }))
+    .filter((x) => x.n > 0);
+  const n = lines.reduce((a, x) => a + x.n, 0);
+  const noteNeeded = lines.find((x) => x.r.needsNote);
   const problems = [];
-  if (!Number.isInteger(n) || n < 1) problems.push('두수를 넣어 주십시오.');
-  if (!picked) problems.push('사유를 골라 주십시오.');
-  if (picked?.needsNote && !reasonNote.trim()) problems.push(`「${picked.name}」 사유를 적어 주십시오.`);
-  if (kind === 'mortality' && !photo && !(noPhoto && waiver.trim())) {
+  if (n < 1) problems.push('사유 옆에 두수를 넣어 주십시오.');
+  if (noteNeeded && !reasonNote.trim()) problems.push(`「${noteNeeded.r.name}」 사유를 적어 주십시오.`);
+  if (needPhoto && !photo && !(noPhoto && waiver.trim())) {
     problems.push('사진을 넣거나, 못 찍었으면 그 사유를 적어 주십시오.');
   }
 
@@ -97,14 +101,16 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
     setBusy(true); setErr(null);
     try {
       let photoKey = null;
-      if (kind === 'mortality' && photo) photoKey = (await api.photoUp(reportId, photo.blob)).photoKey;
+      if (needPhoto && photo) photoKey = (await api.photoUp(reportId, photo.blob)).photoKey;
       const r = await api.deathAdd(reportId, {
-        kind, penId: row.penId, categoryId: row.categoryId, headCount: n,
-        reasonCode: reason, reasonNote, earTag, note,
-        photoKey, photoWaiver: kind === 'mortality' && !photoKey ? waiver : null,
+        kind, penId: row.penId, categoryId: row.categoryId,
+        lines: lines.map((x) => ({ reasonCode: x.r.code, headCount: x.n,
+                                   reasonNote: x.r.needsNote ? reasonNote : null })),
+        earTag, note,
+        photoKey, photoWaiver: needPhoto && !photoKey ? waiver : null,
       });
-      onChanged({ add: r.item, row: r.row });
-      setHead('1'); setReasonNote(''); setEarTag(''); setNote('');
+      onChanged({ add: r.items ?? [r.item], row: r.row });
+      setCounts({}); setReasonNote(''); setEarTag(''); setNote('');
       setPhoto(null); setNoPhoto(false); setWaiver('');
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : '등록하지 못했습니다.');
@@ -160,7 +166,10 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
                 <b className="dp-n">{x.headCount}두</b>
                 <span>{x.reasonName}{x.reasonNote ? ` — ${x.reasonNote}` : ''}</span>
                 {x.earTag && <span className="dim">이각 {x.earTag}</span>}
-                {x.kind === 'mortality' && (x.hasPhoto ? (
+                {x.kind === 'mortality' && !x.hasPhoto && x.photoExempt && (
+                  <span className="dim">사진 받지 않음</span>
+                )}
+                {x.kind === 'mortality' && !x.photoExempt && (x.hasPhoto ? (
                   <button type="button" className="thumb" title="크게 보기"
                           onClick={() => setView({ src: api.photoSrc(reportId, x.id),
                             caption: `${title} · 폐사 ${x.headCount}두 · ${x.reasonName}` })}>
@@ -201,26 +210,30 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
                         onClick={() => setKind(k)}>{v}</button>
               ))}
             </div>
-            <div className="dp-row">
-              <label className="dp-lbl" htmlFor="dp-head">두수</label>
-              <input id="dp-head" className="dp-num" inputMode="numeric" value={head}
-                     onChange={(e) => setHead(e.target.value.replace(/\D/g, ''))} />
+            <div className="dp-row top">
+              <span className="dp-lbl">사유별 두수</span>
+              <div className="dp-reasons">
+                {choices.map((r, i) => (
+                  <label key={r.code} className={Number(counts[r.code] || 0) > 0 ? 'dp-reason on' : 'dp-reason'}>
+                    <span>{r.code} {r.name}</span>
+                    <input className="dp-num" inputMode="numeric" value={counts[r.code] ?? ''}
+                           autoFocus={i === 0} aria-label={`${r.name} 두수`} placeholder="0"
+                           onChange={(e) => setCounts((c) => ({ ...c, [r.code]: e.target.value.replace(/\D/g, '') }))} />
+                  </label>
+                ))}
+              </div>
             </div>
-            <div className="dp-row">
-              <span className="dp-lbl">사유</span>
-              {choices.map((r) => (
-                <button key={r.code} type="button" className={reason === r.code ? 'chip sm on' : 'chip sm'}
-                        onClick={() => setReason(r.code)}>{r.code} {r.name}</button>
-              ))}
-            </div>
-            {picked?.needsNote && (
+            {noteNeeded && (
               <div className="dp-row">
                 <label className="dp-lbl" htmlFor="dp-rnote">기타 사유</label>
                 <input id="dp-rnote" value={reasonNote} onChange={(e) => setReasonNote(e.target.value)}
                        placeholder="무엇 때문인지 적어 주십시오" />
               </div>
             )}
-            {kind === 'mortality' && (
+            {kind === 'mortality' && photoExempt && (
+              <p className="dim dp-exempt">이 줄(분만사 자돈) 폐사는 사진을 받지 않습니다.</p>
+            )}
+            {needPhoto && (
               <div className="dp-row top">
                 <span className="dp-lbl">사진</span>
                 <div className="dp-photo-box">
@@ -250,11 +263,13 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
                 </div>
               </div>
             )}
-            <div className="dp-row">
-              <label className="dp-lbl" htmlFor="dp-ear">이각번호</label>
-              <input id="dp-ear" value={earTag} onChange={(e) => setEarTag(e.target.value)}
-                     placeholder="있으면 (모돈 등)" />
-            </div>
+            {!photoExempt && (
+              <div className="dp-row">
+                <label className="dp-lbl" htmlFor="dp-ear">이각번호</label>
+                <input id="dp-ear" value={earTag} onChange={(e) => setEarTag(e.target.value)}
+                       placeholder="있으면 (모돈 등)" />
+              </div>
+            )}
             <div className="dp-row">
               <label className="dp-lbl" htmlFor="dp-note">비고</label>
               <input id="dp-note" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -266,7 +281,8 @@ export function DeathPanel({ reportId, row, title, items, reasons, photoStorage,
               <span className="spacer" />
               <button type="button" className="btn primary" disabled={busy || problems.length > 0}
                       onClick={add}>
-                {busy ? '등록 중…' : `${KIND[kind]} ${Number.isInteger(n) && n > 0 ? n : ''}두 등록`}
+                {busy ? '등록 중…' : `${KIND[kind]} ${n > 0 ? n : ''}두 등록`
+                  + (lines.length > 1 ? ` (${lines.map((x) => `${x.r.name} ${x.n}`).join(' · ')})` : '')}
               </button>
             </div>
           </div>

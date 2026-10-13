@@ -35,6 +35,7 @@ BEGIN;
 \ir 027_password_change.sql
 \ir 028_hq_can_write.sql
 \ir 029_self_confirm.sql
+\ir 030_photo_exempt.sql
 
 COMMIT;
 

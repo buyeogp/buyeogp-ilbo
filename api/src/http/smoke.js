@@ -442,13 +442,55 @@ try {
     ck('본사도 일보를 시작한다', bOpen.status === 201, JSON.stringify(bOpen.body));
     const bGet = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
     ck('본사 화면도 입력 가능', bGet.body?.canWrite === true && bGet.body?.report?.authorIsMe === true);
+    // 분만사 포유자돈 줄 — 폐사 5두를 넣을 수 있게 전입 5
+    const cat = async (code) => String((await admin.query(
+      'select id from app.pig_category where code = $1', [code])).rows[0].id);
+    const suckId = await cat('SUCK');
+    const sowId = await cat('LACT_SOW');
+    const suckRow = bGet.body.rows.find((r) => String(r.categoryId) === suckId);
+    const sowRow = bGet.body.rows.find((r) => String(r.categoryId) === sowId);
     const bRows = bGet.body.rows.map((r) => ({ penId: r.penId, categoryId: r.categoryId,
-      inHead: 0, outHead: 0, internalOutHead: 0, soldHead: 0 }));
+      inHead: r === suckRow ? 5 : 0, outHead: 0, internalOutHead: 0, soldHead: 0 }));
     const bSave = await call('PUT', `/api/reports/${bOpen.body?.reportId}/rows`, { rows: bRows });
     ck('본사도 숫자를 넣는다', bSave.status === 200 && bSave.body?.saved === bRows.length,
       JSON.stringify(bSave.body)?.slice(0, 90));
-    const bSub = await call('POST', `/api/reports/${bOpen.body?.reportId}/submit`);
-    ck('본사도 제출한다', bSub.status === 200, JSON.stringify(bSub.body));
+
+    // 030 — 분만사 자돈 폐사는 사진 없이, 사유 여러 개를 한 번에
+    const BD = `/api/reports/${bOpen.body?.reportId}/deaths`;
+    const bList = await call('GET', BD);
+    ck('분만사는 사진 안 받는 축종을 알려 준다 (030)',
+      bList.body?.photoExemptCategories?.includes(suckId) && !bList.body?.photoExemptCategories?.includes(sowId),
+      JSON.stringify(bList.body?.photoExemptCategories));
+    const multi = await call('POST', BD, { kind: 'mortality', penId: suckRow?.penId, categoryId: suckRow?.categoryId,
+      lines: [{ reasonCode: '03', headCount: 3 }, { reasonCode: '04', headCount: 2 }] });
+    ck('포유자돈 폐사는 사진 없이 등록된다 (030)', multi.status === 201, JSON.stringify(multi.body)?.slice(0, 120));
+    ck('사유별로 기록이 따로 생긴다 (압사 3 · 아사 2)', multi.body?.items?.length === 2
+      && multi.body.items.map((x) => `${x.reasonName}${x.headCount}`).sort().join(',') === '아사2,압사3',
+      JSON.stringify(multi.body?.items?.map((x) => [x.reasonName, x.headCount])));
+    ck('그 줄 폐사는 합계 5', multi.body?.row?.deadHead === 5, JSON.stringify(multi.body?.row));
+    ck('사진 예외 표시 · 보완 기한 없음', multi.body?.items?.every((x) => x.photoExempt && !x.photoDueAt));
+    const sowDead = await call('POST', BD, { kind: 'mortality', penId: sowRow?.penId, categoryId: sowRow?.categoryId,
+      headCount: 1, reasonCode: '01' });
+    ck('포유모돈 폐사는 여전히 사진이 있어야 한다', sowDead.status === 422 && sowDead.body?.error === 'need_photo',
+      `실제 ${sowDead.status} ${sowDead.body?.error}`);
+    const halfBad = await call('POST', BD, { kind: 'mortality', penId: suckRow?.penId, categoryId: suckRow?.categoryId,
+      lines: [{ reasonCode: '03', headCount: 1 }, { reasonCode: '06', headCount: 1 }] });
+    const afterBad = await call('GET', BD);
+    ck('사유 하나가 걸리면 하나도 안 들어간다', halfBad.status === 422 && afterBad.body?.items?.length === 2,
+      `실제 ${halfBad.status} · ${afterBad.body?.items?.length}건`);
+    const bChk = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
+    ck('사진 없는 자돈 폐사는 「사진 보완」 경고를 만들지 않는다',
+      !bChk.body?.violations?.some((v) => v.ruleCode === 'V10-PHOTO'),
+      JSON.stringify(bChk.body?.violations?.map((v) => v.ruleCode)));
+
+    // 여러 일보 한 번에 제출 — 하나라도 걸리면 아무것도 제출되지 않는다
+    const mixed = await call('POST', '/api/reports/submit-many', { reportIds: [bOpen.body?.reportId, reportId] });
+    const stillDraft = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
+    ck('한 번에 제출 — 하나가 걸리면 전부 취소', mixed.status === 409
+      && stillDraft.body?.report?.status === 'draft', `실제 ${mixed.status} ${mixed.body?.message} · ${stillDraft.body?.report?.status}`);
+    ck('어느 돈사에서 걸렸는지 말한다', /자돈사/.test(mixed.body?.message ?? ''), mixed.body?.message);
+    const bSub = await call('POST', '/api/reports/submit-many', { reportIds: [bOpen.body?.reportId] });
+    ck('본사도 제출한다 (한 번에 제출)', bSub.status === 200 && bSub.body?.submitted?.length === 1, JSON.stringify(bSub.body));
     const bConf = await call('POST', `/api/reports/${bOpen.body?.reportId}/confirm`);
     ck('본인 작성 일보는 확인 없이 확정 안 된다', bConf.status === 409
       && bConf.body?.error === 'self_confirm_needed', `실제 ${bConf.status} ${bConf.body?.error}`);

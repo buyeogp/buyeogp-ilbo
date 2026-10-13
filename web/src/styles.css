@@ -1175,3 +1175,37 @@ button.who:hover { background: var(--surface-2); }
   box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
 }
 .session-warn b { font-family: var(--f-num); color: var(--warn); }
+
+/* 폐사 등록 — 사유마다 두수 (030) */
+.dp-reasons { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.dp-reason {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 6px 4px 10px; border: 1px solid var(--line); border-radius: 5px;
+  font-size: 13px; background: var(--surface);
+}
+.dp-reason.on { border-color: var(--accent); background: var(--surface-2); font-weight: 600; }
+.dp-row .dp-reason input.dp-num { flex: 0 0 56px; width: 56px; }
+.dp-exempt { margin: 0; font-size: 12.5px; }
+
+/* 종부·임신 파트 — 네 돈사를 한 페이지에 (2026-10-13) */
+.part-page { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.part-page > * { flex: 0 0 auto; }
+.part-page .grid-wrap { flex: 0 0 auto; min-height: 0; }
+.part-sum { margin-bottom: 4px; }
+.part-sum-table { margin: 0; }
+.part-sum-table td.num, .part-sum-table th.num {
+  text-align: right; font-family: var(--f-num); font-variant-numeric: tabular-nums;
+}
+.part-sum-table tfoot th { background: var(--surface-2); }
+.part-actions { margin-top: 8px; }
+.part-sec {
+  margin-top: 22px; padding-top: 14px; border-top: 2px solid var(--line);
+  scroll-margin-top: 8px;
+}
+.house-banner.part { margin-bottom: 8px; }
+.house-banner.part h2 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -.02em; }
+.part-tab { font-weight: 700; }
+.linklike {
+  background: none; border: 0; padding: 0; color: var(--accent); font: inherit;
+  font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}

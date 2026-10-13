@@ -8,6 +8,9 @@
  *
  * 화면이 하는 일은 하나다: **지금 무엇이 비어 있고 무엇이 어긋났는지**를
  * 위치와 색으로 보여 주는 것.
+ *
+ * part 가 있으면 「종부·임신 파트」 한 페이지 안의 한 칸이다(PartReport). 그때는
+ * 날짜 이동·제출을 파트 화면이 하고, 이 칸은 자기 상태(빈칸·오류·합계)를 위로 알린다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +59,7 @@ function useNarrow(px = 760) {
   return narrow;
 }
 
-export function DailyReport({ me, houseId, date, onChanged }) {
+export function DailyReport({ me, houseId, date, onChanged, part }) {
   const nav = useNavigate();
   const narrow = useNarrow();
 
@@ -319,6 +322,38 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     nav(`/report/${houseId}/${d}`);
   };
 
+  // 파트 화면에 이 돈사의 상태를 알린다 — 「네 돈사 한 번에 제출」이 이것으로 판정한다
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const partReport = part?.report;
+  useEffect(() => {
+    if (!partReport) return;
+    const sum = (k) => rows.reduce((a, r) => a + num(r[k]), 0);
+    partReport(houseId, {
+      loaded: !!data,
+      houseName: data?.house?.name ?? '',
+      status,
+      reportId: data?.report?.id ?? null,
+      canWrite: !!data?.canWrite,
+      editable, dirty, missing, faulty,
+      photoDue: (deaths?.items ?? [])
+        .filter((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt).length,
+      sums: data ? {
+        opening: rows.reduce((a, r) => a + num(r.openingHead ?? r.expectedOpeningHead), 0),
+        in: sum('inHead'), out: sum('outHead'), internal: sum('internalOutHead'),
+        sold: sum('soldHead'), dead: sum('deadHead') + sum('culledHead'),
+        closing: rows.reduce((a, r) => a + num(calcClosing(r)), 0),
+      } : null,
+      save: () => saveRef.current(),
+    });
+  }, [partReport, houseId, data, rows, status, editable, dirty, missing, faulty, deaths]);
+
+  // 파트 화면이 한꺼번에 제출한 뒤 다시 받으라고 할 때
+  const partTick = part?.tick ?? 0;
+  useEffect(() => { if (partTick) loadRef.current(); }, [partTick]);
+
   if (err && !data) return <div className="center">{err}</div>;
   if (!data) return <div className="center">불러오는 중…</div>;
 
@@ -326,7 +361,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
   const deathMode = data.canWrite && status === 'draft' ? true
     : data.canWriteHouse ? 'photo' : 'none';
   const photoDue = new Set((deaths?.items ?? [])
-    .filter((x) => x.kind === 'mortality' && !x.hasPhoto)
+    .filter((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt)
     .map((x) => `${x.penId ?? ''}|${x.categoryId ?? ''}`));
   const openDeaths = data.report ? (ri) => setDeathRow(ri) : undefined;
 
@@ -334,7 +369,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     setDeaths((d) => {
       if (!d) return d;
       let items = d.items;
-      if (add) items = [...items, add];
+      if (add) items = [...items, ...(Array.isArray(add) ? add : [add])];
       if (remove) items = items.filter((x) => !(x.kind === remove.kind && x.id === remove.id));
       if (replace) items = items.map((x) => (x.kind === replace.kind && x.id === replace.id ? replace : x));
       return { ...d, items };
@@ -370,10 +405,10 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     }
   }
 
-  return (
+  const body = (
     <>
-      <div className="house-banner">
-        <h1>{data.house.name}</h1>
+      <div className={part ? 'house-banner part' : 'house-banner'}>
+        {part ? <h2>{data.house.name}</h2> : <h1>{data.house.name}</h1>}
         <span className="date">{formatDate(date)}</span>
         <span className={'badge ' + (status ?? 'none')}>
           {STATUS_LABEL[status] ?? '미시작'}
@@ -384,10 +419,10 @@ export function DailyReport({ me, houseId, date, onChanged }) {
             {data.report.selfConfirmed && <b className="self-confirm"> · 본인 확정</b>}</span>
         )}
         <span className="spacer" />
-        <DateNav date={date} onGo={goTo} />
+        {!part && <DateNav date={date} onGo={goTo} />}
       </div>
 
-      {narrow && (
+      {narrow && !part && (
         <div className="mobile-note">
           휴대폰에서는 숫자를 <b>보기만</b> 합니다. 입력은 사무실 컴퓨터에서 해 주십시오.
           {deathMode === true && <> <b>폐사·도태</b>는 휴대폰에서 사진과 함께 바로 등록할 수 있습니다.</>}
@@ -406,7 +441,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       {deaths?.items?.length > 0 && (() => {
         const it = deaths.items;
         const n = (k) => it.filter((x) => x.kind === k).reduce((a, x) => a + x.headCount, 0);
-        const due = it.filter((x) => x.kind === 'mortality' && !x.hasPhoto).length;
+        const due = it.filter((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt).length;
         return (
           <div className="death-bar">
             <span>오늘 폐사 <b>{n('mortality')}</b>두 · 도태 <b>{n('culling')}</b>두
@@ -468,6 +503,8 @@ export function DailyReport({ me, houseId, date, onChanged }) {
                       .filter(Boolean).join(' · ') || data.house.name}
                     items={deaths.items} reasons={deaths.reasons}
                     photoStorage={deaths.photoStorage} canEdit={deathMode}
+                    photoExempt={(deaths.photoExemptCategories ?? [])
+                      .includes(String(rows[deathRow].categoryId ?? ''))}
                     onClose={() => setDeathRow(null)} onChanged={deathChanged} />
       )}
 
@@ -517,7 +554,8 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         {editable && (
           <>
             <SaveState state={saveState} dirty={dirty} />
-            {ask === 'submit' ? (
+            {/* 파트 화면에서는 제출을 위쪽 「네 돈사 한 번에 제출」이 한다 */}
+            {part ? null : ask === 'submit' ? (
               <span className="inline-confirm">
                 <b>제출하시겠습니까?</b>
                 {' '}{rows.length}줄 · 폐사·도태 {rows.reduce((a, r) => a + num(r.deadHead) + num(r.culledHead), 0)}두
@@ -596,6 +634,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
       </div>
     </>
   );
+  return part ? <section className="part-sec" id={`part-house-${houseId}`}>{body}</section> : body;
 }
 
 /**

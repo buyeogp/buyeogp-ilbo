@@ -73,6 +73,7 @@ export const api = {
   saveRows: (reportId, rows, noteText, bulkZero) =>
     call('PUT', `/reports/${reportId}/rows`, { rows, noteText, bulkZero }),
   submit: (reportId) => call('POST', `/reports/${reportId}/submit`),
+  submitMany: (reportIds) => call('POST', '/reports/submit-many', { reportIds }),
   confirm: (reportId, selfConfirm = false) =>
     call('POST', `/reports/${reportId}/confirm`, selfConfirm ? { selfConfirm: true } : undefined),
   unconfirm: (reportId) => call('POST', `/reports/${reportId}/unconfirm`),

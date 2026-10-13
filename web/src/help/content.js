@@ -117,6 +117,9 @@ export const SECTIONS = [
           t('이 단추를 누르면 입력할 수 있습니다', 'Press this button to start entering'),
         ],
       } },
+      { h3: t('종부·임신 파트 — 네 돈사를 한 페이지에', 'Breeding part — four houses on one page') },
+      { p: t('*순치사 · 종부사 · 임신1동 · 임신2동*은 위쪽 맨 앞 *「종부·임신 파트」* 를 누르면 *한 페이지*에 위에서 아래로 이어 나옵니다(종이 파트일보 순서). 맨 위 *합계표*에 네 돈사의 전일 · 전입 · 전출 · 내부이동 · 판매 · 폐사·도태 · 당일과 남은 일(빈 줄 · 고칠 줄 · 사진 보완)이 한눈에 나옵니다 — 돈사끼리 옮긴 두수(한쪽 전출 ↔ 다른 쪽 전입)를 여기서 맞춰 봅니다. 돈사 이름을 누르면 그 돈사로 내려갑니다. 「시작 안 한 돈사 모두 시작」 으로 네 돈사를 한꺼번에 시작할 수 있습니다. 돈사별 화면(위쪽 돈사 이름)도 그대로 쓸 수 있습니다.',
+             '*순치사 · 종부사 · 임신1동 · 임신2동* appear *on one page*, top to bottom (the paper part-report order), when you press *"종부·임신 파트"* at the front of the top bar. The *summary table* at the top shows each house’s opening · in · out · internal · sold · deaths/culls · closing and what is left (empty rows · rows to fix · photos). Check pigs moved between houses (out on one ↔ in on another) there. Click a house name to jump to it. "시작 안 한 돈사 모두 시작" starts all four at once. The per-house screens (house names in the top bar) still work.') },
 
       { h3: t('바뀐 두수만 넣습니다', 'Enter only what changed') },
       { figure: {
@@ -251,14 +254,13 @@ export const SECTIONS = [
       { h3: t('한 건 넣기', 'Adding one') },
       { big: [
         t('*종류* — 폐사(죽음) 또는 도태(내보냄)를 고릅니다.', '*Type* — choose 폐사 (died) or 도태 (culled).'),
-        t('*두수* — 몇 마리인지 넣습니다.', '*Head count* — how many.'),
-        t('*사유* — 아래 표에서 고릅니다. 「06 기타」는 사유를 글로 적어야 합니다.',
-          '*Reason* — pick from the table below. "06 기타" (other) needs a written reason.'),
-        t('*사진* — 폐사는 사진이 *꼭* 있어야 합니다. 「사진 찍기 · 고르기」를 누릅니다. 도태는 사진이 없어도 됩니다.',
-          '*Photo* — a death *must* have a photo. Press "사진 찍기 · 고르기". A cull does not need one.'),
+        t('*사유별 두수* — 사유마다 칸이 있습니다. 해당 사유 옆에 몇 마리인지 넣습니다. *여러 사유를 한 번에* 넣을 수 있습니다 (예: 1-1방 포유자돈 압사 *3* · 아사 *2*). 「06 기타」에 넣으면 사유를 글로 적어야 합니다.',
+          '*Count per reason* — each reason has its own box; type how many next to it. You can fill *several reasons at once* (e.g. pen 1-1 suckling piglets: crushed *3* · starved *2*). "06 기타" (other) needs a written reason.'),
+        t('*사진* — 폐사는 사진이 *꼭* 있어야 합니다. 「사진 찍기 · 고르기」를 누릅니다. 도태는 사진이 없어도 됩니다. *분만1·2동의 포유자돈 · 이유자돈 폐사는 사진을 받지 않습니다* — 그 줄은 사진 칸이 나오지 않습니다 (포유모돈은 사진을 받습니다).',
+          '*Photo* — a death *must* have a photo. Press "사진 찍기 · 고르기". A cull does not need one. *Deaths of suckling and weaned piglets in 분만1·2동 need no photo* — those rows show no photo field (nursing sows still need one).'),
         t('*이각번호* — 모돈처럼 번호가 있으면 적습니다. 없으면 비워 둡니다.', '*Ear tag* — write it if the pig has one (e.g. a sow). Otherwise leave it empty.'),
-        t('아래 *「폐사 1두 등록」* 단추를 누릅니다. 칸 숫자와 당일두수가 바로 바뀝니다.',
-          'Press the *"폐사 1두 등록"* button. The cell and the closing count change at once.'),
+        t('아래 *「폐사 5두 등록 (압사 3 · 아사 2)」* 처럼 합계가 적힌 단추를 누릅니다. 사유마다 기록이 따로 남고, 칸 숫자와 당일두수가 바로 바뀝니다.',
+          'Press the button showing the total, e.g. *"폐사 5두 등록 (압사 3 · 아사 2)"*. Each reason is kept as its own record, and the cell and the closing count change at once.'),
       ] },
       { table: {
         head: [t('사유', 'Reason'), t('폐사', 'Death'), t('도태', 'Cull')],
@@ -275,6 +277,8 @@ export const SECTIONS = [
              'Reasons that do not fit the type are not shown (e.g. "압사" is not offered for a cull).') },
 
       { h3: t('사진을 못 찍었으면', 'If you could not take a photo') },
+      { p: t('(분만1·2동 포유자돈 · 이유자돈은 사진을 받지 않으므로 이 절차가 필요 없습니다.)',
+             '(Not needed for suckling or weaned piglets in 분만1·2동 — they take no photo.)') },
       { ol: [
         t('「사진을 못 찍었습니다 — 24시간 안에 붙이겠습니다」에 표시합니다.', 'Tick "사진을 못 찍었습니다 — 24시간 안에 붙이겠습니다".'),
         t('못 찍은 사유를 적고 등록합니다. 그 기록에 *보완 기한(24시간 뒤)* 이 붙습니다.', 'Write why and add it. The record gets a *deadline 24 hours later*.'),
@@ -320,6 +324,9 @@ export const SECTIONS = [
         t('*제출*을 누르면 한 번 더 묻습니다 (줄 수 · 폐사·도태 · 사진 보완이 남았는지). *「제출합니다」* 를 눌러야 제출됩니다.',
           'Pressing *제출* asks once more (rows, deaths/culls, photos still missing). It is submitted only when you press *"제출합니다"*.'),
       ] },
+      { h3: t('종부·임신 파트는 네 돈사를 한 번에', 'The breeding part submits four houses at once') },
+      { p: t('파트 화면에서는 돈사마다 제출 단추가 없고, 위쪽 *「네 돈사 한 번에 제출」* 하나로 냅니다. 네 돈사 모두 빈 줄 · 고칠 칸이 없어야 눌리고, 무엇이 남았는지 단추 아래에 돈사별로 나옵니다. *하나라도 걸리면 아무것도 제출되지 않습니다* — 반만 제출되는 일이 없습니다. 확정 · 되돌려 보내기 · 제출 취소는 *돈사마다* 합니다.',
+             'On the part screen there is no submit button per house — use the one *"네 돈사 한 번에 제출"* at the top. It works only when all four houses have no empty rows or red cells; what is left is listed per house under the button. *If any one fails, nothing is submitted* — never half. Confirming, sending back and withdrawing are done *per house*.') },
       { h3: t('제출한 뒤에 고칠 곳을 찾았으면', 'If you find a mistake after submitting') },
       { table: {
         head: [t('상태', 'State'), t('어떻게', 'What to do')],

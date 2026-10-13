@@ -58,7 +58,7 @@ export function DeathLog({ date, houseId, title, onClose, onOpenReport }) {
   }, [onClose, view]);
 
   const list = items ?? [];
-  const due = list.filter((x) => x.kind === 'mortality' && !x.hasPhoto);
+  const due = list.filter((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt);
   const sum = (k) => list.filter((x) => x.kind === k).reduce((a, x) => a + x.headCount, 0);
 
   // 돈사별로 묶는다. 사진 보완이 남은 돈사가 위로
@@ -68,8 +68,8 @@ export function DeathLog({ date, houseId, title, onClose, onOpenReport }) {
     if (!h) { h = { id: x.houseId, name: x.houseName, rows: [] }; houses.push(h); }
     h.rows.push(x);
   }
-  houses.sort((a, b) => Number(b.rows.some((x) => x.kind === 'mortality' && !x.hasPhoto))
-                      - Number(a.rows.some((x) => x.kind === 'mortality' && !x.hasPhoto)));
+  houses.sort((a, b) => Number(b.rows.some((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt))
+                      - Number(a.rows.some((x) => x.kind === 'mortality' && !x.hasPhoto && !x.photoExempt)));
 
   return (
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -90,7 +90,8 @@ export function DeathLog({ date, houseId, title, onClose, onOpenReport }) {
             <span className="dim"> ({list.length}건)</span>
             {due.length > 0
               ? <span className="dl-due"> · 사진 보완 필요 <b>{due.length}</b>건</span>
-              : list.some((x) => x.kind === 'mortality') && <span className="dl-ok"> · 폐사 사진 모두 있음</span>}
+              : list.some((x) => x.kind === 'mortality' && !x.photoExempt)
+                && <span className="dl-ok"> · 폐사 사진 모두 있음</span>}
           </p>
         )}
         {items && list.length === 0 && <p className="dim dp-empty">이 날 등록된 폐사·도태가 없습니다.</p>}
@@ -122,6 +123,7 @@ export function DeathLog({ date, houseId, title, onClose, onOpenReport }) {
                         <td>{x.earTag ?? ''}</td>
                         <td>
                           {x.kind !== 'mortality' ? <span className="dim">—</span>
+                            : !x.hasPhoto && x.photoExempt ? <span className="dim">받지 않음</span>
                             : x.hasPhoto ? (
                               <button type="button" className="thumb"
                                       onClick={() => setView({ src: api.photoSrc(x.reportId, x.id),

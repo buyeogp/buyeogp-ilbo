@@ -7,6 +7,10 @@
  *
  * 폐사는 사진이 있어야 끝난다(V10). 사진이 없으면 사유를 남기고 24시간 안에 보완한다.
  * 카톡으로 사진을 보내다 빠지던 것(D11)을 시스템이 막는다.
+ * 단 분만1·2동 포유자돈·이유자돈은 사진을 받지 않는다(030 — photo_exempt_rule 이 정한다).
+ *
+ * 한 줄에서 여러 사유를 한 번에 넣는다(lines) — 「1-1방 포유자돈 압사 3 · 아사 2」.
+ * 사유마다 기록이 따로 생기고, 칸의 두수는 그 합이다.
  */
 import express, { Router } from 'express';
 import { tx } from '../../db/pool.js';
@@ -70,14 +74,16 @@ const shape = (x) => ({
   headCount: x.head_count,
   reasonCode: x.code, reasonName: x.reason_name, reasonNote: x.reason_note,
   earTag: x.ear_tag, note: x.note,
-  hasPhoto: !!x.photo_url, photoWaiver: x.photo_waiver, photoDueAt: x.photo_due_at,
+  hasPhoto: !!x.photo_url, photoExempt: x.photo_exempt === true,
+  photoWaiver: x.photo_waiver, photoDueAt: x.photo_due_at,
   createdBy: x.created_by_name, createdAt: x.created_at,
 });
 
 const LIST = (where) => `
   SELECT 'mortality' AS kind, m.id, m.pen_id, m.category_id, m.head_count,
          rc.code, rc.name AS reason_name, m.reason_note, m.ear_tag, m.note,
-         m.photo_url, m.photo_waiver, m.photo_due_at, u.name AS created_by_name, m.created_at
+         m.photo_url, m.photo_exempt, m.photo_waiver, m.photo_due_at,
+         u.name AS created_by_name, m.created_at
     FROM app.mortality m
     JOIN app.reason_code rc ON rc.id = m.reason_code_id
     LEFT JOIN sec.app_user u ON u.id = m.created_by
@@ -85,7 +91,7 @@ const LIST = (where) => `
   UNION ALL
   SELECT 'culling', c.id, c.pen_id, c.category_id, c.head_count,
          rc.code, rc.name, c.reason_note, c.ear_tag, c.note,
-         NULL, NULL, NULL, u.name, c.created_at
+         NULL, NULL, NULL, NULL, u.name, c.created_at
     FROM app.culling c
     JOIN app.reason_code rc ON rc.id = c.reason_code_id
     LEFT JOIN sec.app_user u ON u.id = c.created_by
@@ -100,7 +106,9 @@ deathsRouter.get('/', wrap(async (req, res) => {
       [r.house_id, r.d]);
     const reasons = await q.all(
       `SELECT code, name, scope, needs_note FROM app.reason_code WHERE active ORDER BY seq`);
-    return { items, reasons };
+    const exempt = await q.all(
+      'SELECT category_id FROM app.photo_exempt_rule WHERE house_id = $1', [r.house_id]);
+    return { items, reasons, exempt };
   });
   res.json({
     items: out.items.map(shape),
@@ -109,6 +117,8 @@ deathsRouter.get('/', wrap(async (req, res) => {
       kinds: x.scope === 'both' ? ['mortality', 'culling'] : [x.scope],
     })),
     photoStorage: canStore(),
+    // 이 돈사에서 폐사 사진을 받지 않는 축종 (030)
+    photoExemptCategories: out.exempt.map((x) => String(x.category_id)),
   });
 }));
 
@@ -135,19 +145,28 @@ deathsRouter.post('/photo',
     res.status(201).json({ photoKey: key });
   }));
 
-/** 등록 */
+/**
+ * 등록. 사유가 여럿이면 lines 로 한 번에 — [{ reasonCode, headCount, reasonNote }].
+ * 한 트랜잭션이라 하나가 걸리면 하나도 들어가지 않는다(반쯤 들어간 줄이 남지 않게).
+ */
 deathsRouter.post('/', wrap(async (req, res) => {
   const b = req.body ?? {};
   const kind = kindOf(b.kind);
-  const head = Number(b.headCount);
-  if (!Number.isInteger(head) || head < 1 || head > 9999) {
-    throw new HttpError(422, 'bad_count', '두수는 1 이상의 정수로 넣어 주십시오.');
-  }
-  const reasonNote = String(b.reasonNote ?? '').trim() || null;
+  const raw = Array.isArray(b.lines) && b.lines.length
+    ? b.lines
+    : [{ reasonCode: b.reasonCode, headCount: b.headCount, reasonNote: b.reasonNote }];
+  if (raw.length > 10) throw new HttpError(422, 'bad_request', '사유는 한 번에 10개까지 넣을 수 있습니다.');
+  const lines = raw.map((l) => {
+    const head = Number(l?.headCount);
+    if (!Number.isInteger(head) || head < 1 || head > 9999) {
+      throw new HttpError(422, 'bad_count', '두수는 1 이상의 정수로 넣어 주십시오.');
+    }
+    return { head, code: String(l?.reasonCode ?? ''), note: String(l?.reasonNote ?? '').trim() || null };
+  });
   const earTag = String(b.earTag ?? '').trim() || null;
   const note = String(b.note ?? '').trim() || null;
-  const photoKey = b.photoKey ? String(b.photoKey) : null;
-  const waiver = String(b.photoWaiver ?? '').trim() || null;
+  let photoKey = b.photoKey ? String(b.photoKey) : null;
+  let waiver = String(b.photoWaiver ?? '').trim() || null;
 
   const out = await tx(req.user.userId, async (q) => {
     const r = await reportFor(q, req, { write: true });
@@ -166,55 +185,77 @@ deathsRouter.post('/', wrap(async (req, res) => {
       if (!c) throw new HttpError(422, 'bad_row', '이 돈사의 축종이 아닙니다.');
     }
 
-    const rc = await q.one(
-      'SELECT id, name, scope, needs_note FROM app.reason_code WHERE code = $1 AND active',
-      [String(b.reasonCode ?? '')]);
-    if (!rc || (rc.scope !== 'both' && rc.scope !== kind)) {
-      throw new HttpError(422, 'bad_reason', `${KINDS[kind]} 사유를 골라 주십시오.`);
-    }
-    if (rc.needs_note && !reasonNote) {
-      throw new HttpError(422, 'need_note', `「${rc.name}」을 고르면 사유를 적어야 합니다.`);
+    // 사유 — 고르는 것은 화면이지만 맞는지는 여기서 본다
+    const picked = [];
+    for (const l of lines) {
+      const rc = await q.one(
+        'SELECT id, name, scope, needs_note FROM app.reason_code WHERE code = $1 AND active', [l.code]);
+      if (!rc || (rc.scope !== 'both' && rc.scope !== kind)) {
+        throw new HttpError(422, 'bad_reason', `${KINDS[kind]} 사유를 골라 주십시오.`);
+      }
+      if (rc.needs_note && !l.note) {
+        throw new HttpError(422, 'need_note', `「${rc.name}」을 고르면 사유를 적어야 합니다.`);
+      }
+      picked.push({ ...l, rc });
     }
 
-    let row;
+    const ids = [];
     if (kind === 'mortality') {
-      // V10 — 사진 또는 (사유 + 24시간 보완 기한)
-      if (photoKey && !photoKey.startsWith(`${r.farm_id}/${r.house_id}/${r.d}/`)) {
-        throw new HttpError(422, 'bad_photo', '이 일보에 올린 사진이 아닙니다.');
+      // 사진을 받지 않는 돈사 × 축종이면(030) 사진·사유를 묻지 않는다. 판정은 DB 트리거도 다시 한다
+      const exempt = categoryId != null && !!(await q.one(
+        'SELECT 1 FROM app.photo_exempt_rule WHERE house_id = $1 AND category_id = $2',
+        [r.house_id, categoryId]));
+      if (exempt) {
+        photoKey = null; waiver = null;
+      } else {
+        // V10 — 사진 또는 (사유 + 24시간 보완 기한). 여러 사유면 같은 사진이 각 기록에 붙는다
+        if (photoKey && !photoKey.startsWith(`${r.farm_id}/${r.house_id}/${r.d}/`)) {
+          throw new HttpError(422, 'bad_photo', '이 일보에 올린 사진이 아닙니다.');
+        }
+        if (!photoKey && !waiver) {
+          throw new HttpError(422, 'need_photo',
+            '폐사는 사진이 있어야 등록됩니다. 사진을 올리거나, 못 찍었으면 그 사유를 적어 주십시오.');
+        }
       }
-      if (!photoKey && !waiver) {
-        throw new HttpError(422, 'need_photo',
-          '폐사는 사진이 있어야 등록됩니다. 사진을 올리거나, 못 찍었으면 그 사유를 적어 주십시오.');
+      for (const l of picked) {
+        const row = await q.one(
+          `INSERT INTO app.mortality
+             (farm_id, event_date, house_id, pen_id, category_id, head_count,
+              reason_code_id, reason_note, ear_tag, photo_url, photo_waiver, photo_due_at,
+              note, created_by)
+           VALUES ($1,$2::date,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+                   CASE WHEN $10::text IS NULL AND $11::text IS NOT NULL
+                        THEN now() + interval '24 hours' END,
+                   $12,$13)
+           RETURNING id`,
+          [r.farm_id, r.d, r.house_id, penId, categoryId, l.head, l.rc.id, l.note, earTag,
+           photoKey, photoKey ? null : waiver, note, req.user.userId]);
+        ids.push(row.id);
       }
-      row = await q.one(
-        `INSERT INTO app.mortality
-           (farm_id, event_date, house_id, pen_id, category_id, head_count,
-            reason_code_id, reason_note, ear_tag, photo_url, photo_waiver, photo_due_at,
-            note, created_by)
-         VALUES ($1,$2::date,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-                 CASE WHEN $10::text IS NULL THEN now() + interval '24 hours' END,
-                 $12,$13)
-         RETURNING id`,
-        [r.farm_id, r.d, r.house_id, penId, categoryId, head, rc.id, reasonNote, earTag,
-         photoKey, photoKey ? null : waiver, note, req.user.userId]);
     } else {
-      row = await q.one(
-        `INSERT INTO app.culling
-           (farm_id, event_date, house_id, pen_id, category_id, head_count,
-            reason_code_id, reason_note, ear_tag, note, created_by)
-         VALUES ($1,$2::date,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         RETURNING id`,
-        [r.farm_id, r.d, r.house_id, penId, categoryId, head, rc.id, reasonNote, earTag,
-         note, req.user.userId]);
+      for (const l of picked) {
+        const row = await q.one(
+          `INSERT INTO app.culling
+             (farm_id, event_date, house_id, pen_id, category_id, head_count,
+              reason_code_id, reason_note, ear_tag, note, created_by)
+           VALUES ($1,$2::date,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           RETURNING id`,
+          [r.farm_id, r.d, r.house_id, penId, categoryId, l.head, l.rc.id, l.note, earTag,
+           note, req.user.userId]);
+        ids.push(row.id);
+      }
     }
     // 폐사와 도태는 번호가 따로 매겨진다 — 같은 번호가 둘 다 있을 수 있어 종류로 고른다
-    const item = (await q.all(LIST('X.id = $1'), [row.id])).find((x) => x.kind === kind);
-    return { item, row: await rowSums(q, r, penId, categoryId),
-             ev: await tellDeaths(q, r.id, req.user, `${KINDS[kind]} ${head}두`) };
+    const items = (await q.all(LIST('X.id = ANY($1::bigint[])'), [ids])).filter((x) => x.kind === kind);
+    const total = picked.reduce((a, l) => a + l.head, 0);
+    const detail = picked.length > 1 ? ` (${picked.map((l) => `${l.rc.name} ${l.head}`).join(' · ')})` : '';
+    return { items, row: await rowSums(q, r, penId, categoryId),
+             ev: await tellDeaths(q, r.id, req.user, `${KINDS[kind]} ${total}두${detail}`) };
   });
   if (out.ev) publish(out.ev);
 
-  res.status(201).json({ item: shape(out.item), row: out.row });
+  const items = out.items.map(shape);
+  res.status(201).json({ item: items[0], items, row: out.row });
 }));
 
 /** 빼기 — 작성 중인 일보에서만 */
@@ -301,13 +342,13 @@ deathLogRouter.get('/', wrap(async (req, res) => {
     WITH x AS (
       SELECT 'mortality' AS kind, m.id, m.house_id, m.pen_id, m.category_id, m.head_count,
              m.reason_code_id, m.reason_note, m.ear_tag, m.note,
-             m.photo_url IS NOT NULL AS has_photo, m.photo_waiver, m.photo_due_at,
+             m.photo_url IS NOT NULL AS has_photo, m.photo_exempt, m.photo_waiver, m.photo_due_at,
              m.created_by, m.created_at, m.event_date
         FROM app.mortality m WHERE m.event_date = $1::date
       UNION ALL
       SELECT 'culling', c.id, c.house_id, c.pen_id, c.category_id, c.head_count,
              c.reason_code_id, c.reason_note, c.ear_tag, c.note,
-             NULL, NULL, NULL, c.created_by, c.created_at, c.event_date
+             NULL, NULL, NULL, NULL, c.created_by, c.created_at, c.event_date
         FROM app.culling c WHERE c.event_date = $1::date
     )
     SELECT x.*, h.name AS house_name, h.seq AS house_seq, p.code AS pen_code, p.seq AS pen_seq,
@@ -331,7 +372,8 @@ deathLogRouter.get('/', wrap(async (req, res) => {
       penId: r.pen_id, penCode: r.pen_code, categoryId: r.category_id, categoryName: r.category_name,
       headCount: r.head_count, reasonCode: r.code, reasonName: r.reason_name, reasonNote: r.reason_note,
       earTag: r.ear_tag, note: r.note,
-      hasPhoto: r.has_photo === true, photoWaiver: r.photo_waiver, photoDueAt: r.photo_due_at,
+      hasPhoto: r.has_photo === true, photoExempt: r.photo_exempt === true,
+      photoWaiver: r.photo_waiver, photoDueAt: r.photo_due_at,
       createdBy: r.created_by_name, createdAt: r.created_at,
     })),
   });

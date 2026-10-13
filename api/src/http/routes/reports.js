@@ -6,7 +6,7 @@
  * 그래서 이 API 는 opening_head·closing_head 를 받지 않는다 — 받으면 안 된다.
  */
 import { Router } from 'express';
-import { tx } from '../../db/pool.js';
+import { tx, describeDbError } from '../../db/pool.js';
 import { HttpError, requireAuth, requireRole, canAccessHouse, canWriteHouse, wrap }
   from '../middleware.js';
 
@@ -317,6 +317,49 @@ reportsRouter.put('/:reportId/rows', wrap(async (req, res) => {
     })),
     canSubmit: !out.violations.some((v) => v.severity === 'block'),
   });
+}));
+
+/**
+ * 여러 일보 한 번에 제출 — 「종부·임신 파트」 화면 (발주처 요구 2026-10-13).
+ * { reportIds: [...] }. **한 트랜잭션**이다 — 한 돈사라도 걸리면 아무것도 제출되지 않는다
+ * (반만 제출된 파트가 남으면 팀장이 어디까지 됐는지 다시 세야 한다).
+ * 규칙 판정은 단건 제출과 같은 트리거가 한다. 여기서는 어느 돈사에서 걸렸는지만 붙인다.
+ */
+reportsRouter.post('/submit-many', wrap(async (req, res) => {
+  const ids = [...new Set((Array.isArray(req.body?.reportIds) ? req.body.reportIds : []).map(String))];
+  if (!ids.length || ids.length > 12 || ids.some((x) => !/^\d+$/.test(x))) {
+    throw new HttpError(400, 'bad_request', '제출할 일보를 골라 주십시오.');
+  }
+  const heads = await tx(req.user.userId, async (q) => {
+    const out = [];
+    for (const id of ids) {
+      const rep = await q.one(
+        `SELECT dr.id, dr.house_id, dr.status::text, h.name
+           FROM app.daily_report dr JOIN app.house h ON h.id = dr.house_id WHERE dr.id = $1`, [id]);
+      if (!rep) throw new HttpError(404, 'not_found', '일보를 찾을 수 없습니다.');
+      if (!canWriteHouse(req.user, rep.house_id)) {
+        throw new HttpError(403, 'forbidden', `${rep.name}: 담당 돈사가 아닙니다.`);
+      }
+      if (rep.status !== 'draft') {
+        throw new HttpError(409, 'not_draft', `${rep.name}: 작성 중인 일보가 아닙니다. 화면을 새로 고쳐 주십시오.`);
+      }
+      try {
+        await q.one(
+          `UPDATE app.daily_report
+              SET status = 'submitted', submitted_at = now(),
+                  return_reason = NULL, returned_at = NULL, returned_by = NULL
+            WHERE id = $1 RETURNING id`, [rep.id]);
+      } catch (e) {
+        const d = describeDbError(e);
+        if (!d || d.status >= 500) throw e;
+        throw new HttpError(d.status, d.code, `${rep.name}: ${d.message}`);
+      }
+      out.push(await reportHead(q, rep.id));
+    }
+    return out;
+  });
+  for (const h of heads) tell('submitted', h, req.user);
+  res.json({ submitted: heads.map((h) => ({ reportId: h.reportId, houseName: h.houseName })) });
 }));
 
 /** 제출. 검증에 걸리면 트리거가 막는다 — 여기서 미리 거르지 않는다 (기준이 갈리면 안 된다) */
