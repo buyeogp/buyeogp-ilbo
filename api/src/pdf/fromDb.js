@@ -16,7 +16,7 @@ const md = (d) => (d ? String(d).slice(5) : '');
 export async function reportFromDb(q, reportId) {
   const rep = await q.one(
     `SELECT dr.id, dr.status::text, dr.report_date::text AS d, dr.note_text,
-            h.id AS house_id, h.code, h.name, h.count_basis::text AS basis,
+            h.id AS house_id, h.code, h.name, h.count_basis::text AS basis, dr.self_confirmed,
             a.name AS author, c.name AS confirmer
        FROM app.daily_report dr
        JOIN app.house h ON h.id = dr.house_id
@@ -56,7 +56,7 @@ export async function reportFromDb(q, reportId) {
     reportDate: rep.d,
     status: rep.status,
     author: rep.author ?? '',
-    confirmedBy: rep.confirmer ?? '',
+    confirmedBy: rep.confirmer ? `${rep.confirmer}${rep.self_confirmed ? ' (본인 확정)' : ''}` : '',
     reportNo: `${rep.d.replace(/-/g, '')}-${rep.code}`,
     noteText: rep.note_text ?? '',
     vaccinations: [],

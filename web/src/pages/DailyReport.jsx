@@ -301,7 +301,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     if (dirty) await save();
     await api.submit(data.report.id);
   });
-  const confirm = () => act('confirm', () => api.confirm(data.report.id));
+  const confirm = (self = false) => act('confirm', () => api.confirm(data.report.id, self));
   // 확정 해제 뒤: 이미 뽑은 종이가 있으면 바꿔야 한다고 알린다
   const unconfirm = () => act('unconfirm', async () => {
     const r = await api.unconfirm(data.report.id);
@@ -380,7 +380,8 @@ export function DailyReport({ me, houseId, date, onChanged }) {
         </span>
         {data.report?.authorName && (
           <span className="hint">작성 {data.report.authorName}
-            {data.report.confirmerName ? ` · 확정 ${data.report.confirmerName}` : ''}</span>
+            {data.report.confirmerName ? ` · 확정 ${data.report.confirmerName}` : ''}
+            {data.report.selfConfirmed && <b className="self-confirm"> · 본인 확정</b>}</span>
         )}
         <span className="spacer" />
         <DateNav date={date} onGo={goTo} />
@@ -564,12 +565,22 @@ export function DailyReport({ me, houseId, date, onChanged }) {
           <button className="btn" onClick={() => setAsk('return')} disabled={busy != null}>되돌려 보내기</button>
         ))}
 
-        {/* 확정 — 직접 시작한 일보는 다른 본사 직원이 확정한다 (SoD-1) */}
-        {status === 'submitted' && canConfirm && (data.report.authorIsMe ? (
-          <span className="hint">직접 시작한 일보라 다른 본사 직원이 확정합니다</span>
-        ) : (
-          <button className="btn primary" onClick={confirm} disabled={busy != null}>
+        {/* 확정 — 직접 작성한 일보는 한 번 더 묻고 「본인 확정」으로 남긴다 (029) */}
+        {status === 'submitted' && canConfirm && (!data.report.authorIsMe ? (
+          <button className="btn primary" onClick={() => confirm()} disabled={busy != null}>
             {busy === 'confirm' ? '확정 중…' : '확정'}
+          </button>
+        ) : ask === 'self' ? (
+          <span className="inline-confirm">
+            <b>직접 작성한 일보를 직접 확정합니다.</b> 일보·제출 현황·PDF 에 「본인 확정」으로 표시됩니다.
+            <button className="btn small" onClick={() => setAsk(null)}>그대로 둡니다</button>
+            <button className="btn small primary" disabled={busy != null}
+                    onClick={() => { setAsk(null); confirm(true); }}>본인 확정</button>
+          </span>
+        ) : (
+          <button className="btn primary" onClick={() => setAsk('self')} disabled={busy != null}
+                  title="직접 작성한 일보 — 다른 본사 분이 확정하면 「본인 확정」 표시가 남지 않습니다">
+            확정 (본인 작성)
           </button>
         ))}
         {(status === 'confirmed' || status === 'locked') && canUnconfirm && (ask === 'unconfirm' ? (

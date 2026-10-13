@@ -97,6 +97,7 @@ export function HouseStatus({ date }) {
                   <span className={'badge ' + (TONE[h.status] ?? 'none')}>
                     {STATUS_LABEL[h.status] ?? h.status}
                   </span>
+                  {h.selfConfirmed && <span className="self-confirm" title="작성자가 직접 확정"> 본인</span>}
                 </td>
                 <td className="readonly">{time(h.submittedAt)}</td>
                 <td className="readonly">{time(h.confirmedAt)}</td>

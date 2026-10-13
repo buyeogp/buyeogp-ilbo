@@ -434,8 +434,16 @@ try {
     const bSub = await call('POST', `/api/reports/${bOpen.body?.reportId}/submit`);
     ck('본사도 제출한다', bSub.status === 200, JSON.stringify(bSub.body));
     const bConf = await call('POST', `/api/reports/${bOpen.body?.reportId}/confirm`);
-    ck('직접 시작한 일보는 본인이 확정 못 한다 (SoD-1)', bConf.status === 422
-      && /다른 본사/.test(bConf.body?.message ?? ''), `실제 ${bConf.status} ${bConf.body?.message}`);
+    ck('본인 작성 일보는 확인 없이 확정 안 된다', bConf.status === 409
+      && bConf.body?.error === 'self_confirm_needed', `실제 ${bConf.status} ${bConf.body?.error}`);
+    const bSelf = await call('POST', `/api/reports/${bOpen.body?.reportId}/confirm`, { selfConfirm: true });
+    ck('확인하면 본인 확정으로 확정된다 (029)', bSelf.status === 200 && bSelf.body?.selfConfirmed === true,
+      JSON.stringify(bSelf.body));
+    const bView = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
+    ck('일보에 본인 확정이 남는다', bView.body?.report?.selfConfirmed === true);
+    const bUn = await call('POST', `/api/reports/${bOpen.body?.reportId}/unconfirm`);
+    const bAfter = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
+    ck('확정 해제하면 본인 확정 표시도 사라진다', bUn.status === 200 && bAfter.body?.report?.selfConfirmed === false);
   }
 
   const status = await call('GET', `/api/reports/status?date=${TEST_DATE}`);

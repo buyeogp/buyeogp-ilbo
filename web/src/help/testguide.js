@@ -274,8 +274,8 @@ export const TG_SECTIONS = [
     views: ['hq'],
     title: t('본사가 해 주실 일', 'For head office'),
     blocks: [
-      { p: t('*본사 계정은 현장 기능을 모두 쓸 수 있습니다* — 일보 시작, 숫자 입력·수정, 폐사·도태 등록, 제출. 팀장이 시작한 일보를 고친 뒤 확정해도 됩니다(누가 어느 칸을 고쳤는지는 기록에 남습니다). 단 *본사가 직접 시작한 일보는 다른 본사 직원이 확정*합니다 — 쓴 사람과 확인하는 사람이 달라야 하기 때문입니다.',
-             '*Head-office accounts can do everything a field account can* — start a report, enter and edit numbers, record deaths and culls, submit. You may fix a report a team lead started and then confirm it (who changed which cell is recorded). But *a report head office started itself must be confirmed by another head-office member* — the writer and the checker must differ.') },
+      { p: t('*본사 계정은 현장 기능을 모두 쓸 수 있습니다* — 일보 시작, 숫자 입력·수정, 폐사·도태 등록, 제출. 팀장이 시작한 일보를 고친 뒤 확정해도 됩니다(누가 어느 칸을 고쳤는지는 기록에 남습니다). *직접 시작한 일보도 직접 확정할 수 있습니다* — 「확정 (본인 작성)」을 누르면 한 번 더 묻고, 일보·제출 현황·PDF 에 *「본인 확정」* 으로 표시됩니다. 다른 본사 분이 확정하면 이 표시가 남지 않습니다.',
+             '*Head-office accounts can do everything a field account can* — start a report, enter and edit numbers, record deaths and culls, submit. You may fix a report a team lead started and then confirm it (who changed which cell is recorded). *You may also confirm a report you started yourself* — press "확정 (본인 작성)", confirm once more, and the report, status board and PDF are marked *"본인 확정"* (self-confirmed). If another head-office member confirms it, no such mark is left.') },
       { h3: t('1. 「제출 현황」을 봅니다', '1. Open "제출 현황" (Status)') },
       { p: t('이 화면은 *켜 두기만 하면 됩니다.* 팀장이 제출하면 새로고침 없이 상태가 바뀌고, 오른쪽 아래에 *「자돈사 9/29 제출됨」* 알림이 뜹니다. 누르면 그 일보로 갑니다.',
              'Just *leave this screen open.* When a team lead submits, the status changes without F5 and a *"자돈사 9/29 제출됨"* notice appears at the bottom right. Click it to open the report.') },

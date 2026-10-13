@@ -28,7 +28,7 @@ reportsRouter.get('/status', wrap(async (req, res) => {
   const rows = await tx(req.user.userId, (q) => q.all(
     `SELECT h.id AS house_id, h.code, h.name, h.type::text, h.count_basis::text, h.seq,
             dr.id AS report_id, COALESCE(dr.status::text,'미시작') AS status,
-            dr.submitted_at, dr.confirmed_at, dr.printed_at,
+            dr.submitted_at, dr.confirmed_at, dr.printed_at, dr.self_confirmed,
             (SELECT count(*)::int FROM app.pen_daily pd WHERE pd.report_id = dr.id) AS entered,
             (SELECT count(*)::int FROM app.pen p
               WHERE p.house_id = h.id AND p.active_from <= $1::date
@@ -48,6 +48,7 @@ reportsRouter.get('/status', wrap(async (req, res) => {
       houseId: r.house_id, code: r.code, name: r.name, type: r.type,
       countBasis: r.count_basis, reportId: r.report_id, status: r.status,
       submittedAt: r.submitted_at, confirmedAt: r.confirmed_at, printedAt: r.printed_at,
+      selfConfirmed: !!r.self_confirmed,
       entered: r.entered, expected: expectedRows(r),
       canWrite: canWriteHouse(req.user, r.house_id),
     })) });
@@ -85,7 +86,7 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
     const report = await q.one(
       `SELECT dr.id, dr.status::text, dr.author_id, dr.confirmed_by, dr.note_text,
               dr.submitted_at, dr.confirmed_at, dr.locked_at, dr.printed_at,
-              dr.bulk_zero_rows, dr.bulk_zero_at,
+              dr.bulk_zero_rows, dr.bulk_zero_at, dr.self_confirmed,
               dr.return_reason, dr.returned_at, rb.name AS returned_by_name,
               a.name AS author_name, c.name AS confirmer_name
          FROM app.daily_report dr
@@ -188,6 +189,7 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
       lockedAt: out.report.locked_at, printedAt: out.report.printed_at,
       bulkZeroRows: out.report.bulk_zero_rows, bulkZeroAt: out.report.bulk_zero_at,
       authorIsMe: String(out.report.author_id) === String(req.user.userId),
+      selfConfirmed: !!out.report.self_confirmed,
       returnReason: out.report.return_reason, returnedAt: out.report.returned_at,
       returnedBy: out.report.returned_by_name,
     },
@@ -342,14 +344,22 @@ reportsRouter.post('/:reportId/submit', wrap(async (req, res) => {
 reportsRouter.post('/:reportId/confirm', requireRole('hq_staff', 'hq_manager'),
   wrap(async (req, res) => {
     const r = await tx(req.user.userId, async (q) => {
+      const rep = await q.one('SELECT author_id FROM app.daily_report WHERE id = $1', [req.params.reportId]);
+      if (!rep) return null;
+      // 본인 확정은 허용하되(029) 실수로 누르지 않게 한 번 더 묻는다 — 화면이 확인을 받아 selfConfirm 을 보낸다
+      if (String(rep.author_id) === String(req.user.userId) && req.body?.selfConfirm !== true) {
+        throw new HttpError(409, 'self_confirm_needed',
+          '직접 작성한 일보입니다. 본인 확정으로 진행하려면 한 번 더 확인해 주십시오.');
+      }
       const u = await q.one(
         `UPDATE app.daily_report SET status = 'confirmed'
-          WHERE id = $1 RETURNING id, status::text, confirmed_at`, [req.params.reportId]);
+          WHERE id = $1 RETURNING id, status::text, confirmed_at, self_confirmed`, [req.params.reportId]);
       return u && { ...u, head: await reportHead(q, u.id) };
     });
     if (!r) throw new HttpError(404, 'not_found', '일보를 찾을 수 없습니다.');
     tell('confirmed', r.head, req.user);
-    res.json({ reportId: r.id, status: r.status, confirmedAt: r.confirmed_at });
+    res.json({ reportId: r.id, status: r.status, confirmedAt: r.confirmed_at,
+               selfConfirmed: !!r.self_confirmed });
   }));
 
 /**
