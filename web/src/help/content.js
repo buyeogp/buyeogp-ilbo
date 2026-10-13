@@ -345,6 +345,8 @@ export const SECTIONS = [
     views: ['hq'],
     title: t('확인하고 확정하기', 'Checking and confirming'),
     blocks: [
+      { p: t('본사 계정은 *현장 기능도 모두* 씁니다 — 일보 시작·숫자 입력·폐사·도태·제출은 팀장 설명과 같습니다. 팀장이 시작한 일보를 고친 뒤 확정해도 되고, 누가 어느 칸을 고쳤는지는 기록에 남습니다. *본사가 직접 시작한 일보는 다른 본사 직원이 확정*합니다.',
+             'Head-office accounts can *also use every field function* — starting, entering numbers, deaths/culls and submitting work as described for team leads. You may fix a team lead’s report and confirm it; who changed which cell is recorded. *A report head office started itself is confirmed by another head-office member.*') },
       { h3: t('제출 현황에서 시작합니다', 'Start from the status board') },
       { p: t('아침에 이 화면을 먼저 봅니다. *어느 돈사가 아직 안 냈나*를 한 장으로 답합니다.',
              'Look at this screen first in the morning. It answers *which house has not submitted yet* on one page.') },

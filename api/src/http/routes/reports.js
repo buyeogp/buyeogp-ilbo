@@ -187,6 +187,7 @@ reportsRouter.get('/:houseId/:date', wrap(async (req, res) => {
       submittedAt: out.report.submitted_at, confirmedAt: out.report.confirmed_at,
       lockedAt: out.report.locked_at, printedAt: out.report.printed_at,
       bulkZeroRows: out.report.bulk_zero_rows, bulkZeroAt: out.report.bulk_zero_at,
+      authorIsMe: String(out.report.author_id) === String(req.user.userId),
       returnReason: out.report.return_reason, returnedAt: out.report.returned_at,
       returnedBy: out.report.returned_by_name,
     },

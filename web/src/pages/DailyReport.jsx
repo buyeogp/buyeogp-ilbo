@@ -366,7 +366,7 @@ export function DailyReport({ me, houseId, date, onChanged }) {
     } else if (status !== 'draft') {
       locked = LOCKED[status];
     } else {
-      locked = '담당 돈사가 아니어서 보기만 할 수 있습니다. 입력은 담당 팀장 계정에서 합니다.';
+      locked = '담당 돈사가 아니어서 보기만 할 수 있습니다. 입력은 담당 팀장이나 본사 계정에서 합니다.';
     }
   }
 
@@ -564,11 +564,14 @@ export function DailyReport({ me, houseId, date, onChanged }) {
           <button className="btn" onClick={() => setAsk('return')} disabled={busy != null}>되돌려 보내기</button>
         ))}
 
-        {status === 'submitted' && canConfirm && (
+        {/* 확정 — 직접 시작한 일보는 다른 본사 직원이 확정한다 (SoD-1) */}
+        {status === 'submitted' && canConfirm && (data.report.authorIsMe ? (
+          <span className="hint">직접 시작한 일보라 다른 본사 직원이 확정합니다</span>
+        ) : (
           <button className="btn primary" onClick={confirm} disabled={busy != null}>
             {busy === 'confirm' ? '확정 중…' : '확정'}
           </button>
-        )}
+        ))}
         {(status === 'confirmed' || status === 'locked') && canUnconfirm && (ask === 'unconfirm' ? (
           <span className="inline-confirm">
             확정을 풀면 <b>제출됨</b>으로 돌아갑니다. 고칠 곳이 있으면 이어서 「되돌려 보내기」를 합니다.

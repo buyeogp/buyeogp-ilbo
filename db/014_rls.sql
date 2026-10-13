@@ -99,7 +99,9 @@ $$;
 -- 담당 돈사이거나 전 돈사 등급이면 참
 CREATE FUNCTION app.can_write_house(p_house_id bigint) RETURNS boolean
 LANGUAGE sql STABLE SET search_path = app, sec, extensions, public AS $$
-  SELECT app.has_role('team_lead','farm_manager') AND app.can_see_house(p_house_id);
+  -- 본사도 현장 기능을 모두 한다 (028, 발주처 요구 2026-10-13)
+  SELECT app.has_role('team_lead','farm_manager','hq_staff','hq_manager')
+     AND app.can_see_house(p_house_id);
 $$;
 
 CREATE FUNCTION app.pen_house(p_pen_id bigint) RETURNS bigint

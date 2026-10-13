@@ -420,6 +420,24 @@ try {
     ck('확정된 일보가 없는 날은 409', none.status === 409, `실제 ${none.status}`);
   }
 
+  // 본사도 현장 기능을 모두 (028) — 다른 돈사 일보를 직접 시작·입력·제출한다
+  {
+    const bOpen = await call('POST', `/api/reports/${bunman}/${TEST_DATE}/open`);
+    ck('본사도 일보를 시작한다', bOpen.status === 201, JSON.stringify(bOpen.body));
+    const bGet = await call('GET', `/api/reports/${bunman}/${TEST_DATE}`);
+    ck('본사 화면도 입력 가능', bGet.body?.canWrite === true && bGet.body?.report?.authorIsMe === true);
+    const bRows = bGet.body.rows.map((r) => ({ penId: r.penId, categoryId: r.categoryId,
+      inHead: 0, outHead: 0, internalOutHead: 0, soldHead: 0 }));
+    const bSave = await call('PUT', `/api/reports/${bOpen.body?.reportId}/rows`, { rows: bRows });
+    ck('본사도 숫자를 넣는다', bSave.status === 200 && bSave.body?.saved === bRows.length,
+      JSON.stringify(bSave.body)?.slice(0, 90));
+    const bSub = await call('POST', `/api/reports/${bOpen.body?.reportId}/submit`);
+    ck('본사도 제출한다', bSub.status === 200, JSON.stringify(bSub.body));
+    const bConf = await call('POST', `/api/reports/${bOpen.body?.reportId}/confirm`);
+    ck('직접 시작한 일보는 본인이 확정 못 한다 (SoD-1)', bConf.status === 422
+      && /다른 본사/.test(bConf.body?.message ?? ''), `실제 ${bConf.status} ${bConf.body?.message}`);
+  }
+
   const status = await call('GET', `/api/reports/status?date=${TEST_DATE}`);
   ck('본사는 전 돈사 현황을 본다', status.body?.houses?.length === 12,
     `실제 ${status.body?.houses?.length}`);

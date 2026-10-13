@@ -65,9 +65,12 @@ export function canAccessHouse(user, houseId) {
 }
 
 /** 쓰기는 담당 팀장·현장관리자만 (§6.2) */
+// 일보를 쓰는 등급 — 본사도 현장 기능을 모두 한다 (발주처 요구 2026-10-13, DB 028 과 같은 목록)
+const WRITERS = ['team_lead', 'farm_manager', 'hq_staff', 'hq_manager'];
+
 export function canWriteHouse(user, houseId) {
   if (!user) return false;
-  if (!user.roles.some((r) => r === 'team_lead' || r === 'farm_manager')) return false;
+  if (!user.roles.some((r) => WRITERS.includes(r))) return false;
   return canAccessHouse(user, houseId);
 }
 

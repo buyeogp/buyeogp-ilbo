@@ -33,6 +33,7 @@ BEGIN;
 \ir 025_bulk_zero.sql
 \ir 026_report_return.sql
 \ir 027_password_change.sql
+\ir 028_hq_can_write.sql
 
 COMMIT;
 

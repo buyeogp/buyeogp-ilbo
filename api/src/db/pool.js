@@ -98,7 +98,7 @@ const CHECK_MSG = {
   v6_live_born_nonneg: '사산·압사·미라·기형·도태·체미의 합이 총산보다 많습니다.',
   v10_photo_required: '폐사 사진이 필요합니다. 없으면 사유를 적어 주십시오.',
   l4_variance_needs_reason: '실사 두수가 다릅니다. 사유를 적어 주십시오.',
-  sod1_author_ne_confirmer: '작성자와 확인자가 같을 수 없습니다.',
+  sod1_author_ne_confirmer: '직접 시작한 일보는 확정할 수 없습니다. 다른 본사 직원이 확정해야 합니다.',
   sod2_issuer_ne_approver: '발행자와 승인자가 같을 수 없습니다.',
 };
 
