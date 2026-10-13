@@ -12,6 +12,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 세션 만료 — 매 응답의 X-Session-Exp 를 기억해 두고, 401 이 오면 바로 알린다.
+ * 화면(SessionGuard)이 이걸 보고 2분 전 안내 · 즉시 로그인 화면 전환을 한다.
+ */
+const sessionListeners = new Set();
+export const session = {
+  exp: null,                       // Date — 이 시각이 지나면 서버가 로그아웃시킨다
+  on(fn) { sessionListeners.add(fn); return () => sessionListeners.delete(fn); },
+};
+const sessionEmit = (type) => { for (const fn of sessionListeners) fn(type); };
+
 async function call(method, path, body) {
   // 사진은 파일 그대로 보낸다 (Blob). 나머지는 JSON
   const raw = body instanceof Blob;
@@ -28,8 +39,17 @@ async function call(method, path, body) {
     throw new ApiError(0, 'offline', '서버에 닿지 않습니다. 잠시 뒤에 다시 해 주십시오.');
   }
 
+  const exp = res.headers.get('x-session-exp');
+  if (exp) { session.exp = new Date(exp); sessionEmit('exp'); }
+
   let data = null;
   try { data = await res.json(); } catch { /* 본문이 없을 수 있다 */ }
+
+  // 로그인이 끝났다 — 다음 동작을 기다리지 않고 바로 로그인 화면으로 (로그인·me 요청 자체는 제외)
+  if (res.status === 401 && data?.error === 'unauthenticated' && path !== '/auth/me') {
+    session.exp = null;
+    sessionEmit('expired');
+  }
 
   if (!res.ok) {
     throw new ApiError(res.status, data?.error ?? 'unknown',
@@ -42,6 +62,7 @@ export const api = {
   login: (loginId, password) => call('POST', '/auth/login', { loginId, password }),
   logout: () => call('POST', '/auth/logout'),
   me: () => call('GET', '/auth/me'),
+  sessionExp: () => call('GET', '/auth/session'),
   changePassword: (current, next) => call('POST', '/auth/password', { current, next }),
   sessions: () => call('GET', '/auth/sessions'),
   revokeOthers: () => call('POST', '/auth/sessions/revoke-others'),

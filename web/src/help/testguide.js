@@ -54,6 +54,8 @@ export const TG_SECTIONS = [
           'The *administrator* gives each person their own ID and password. Do not share accounts.'),
         t('받은 비밀번호로 *처음 들어오면 새 비밀번호를 정하는 화면*이 먼저 나옵니다. 나만 아는 비밀번호로 바꾸고 시작하십시오 (8자 이상, 영문자 섞기). 나중에 바꾸려면 오른쪽 위 *내 이름*을 누릅니다.',
           'The *first time* you log in with the given password, a *set-new-password screen* appears. Choose one only you know (8+ characters, include letters). To change it later, click *your name* at the top right.'),
+        t('*1시간* 동안 아무것도 안 하면 자동 로그아웃됩니다. *2분 전*에 「자동 로그아웃됩니다 [계속 사용]」 이 뜨니 누르면 이어서 씁니다. 숫자는 치는 대로 저장돼 있어 잃지 않습니다.',
+          'After *1 hour* with no activity you are logged out automatically. *2 minutes before*, "자동 로그아웃됩니다 [계속 사용]" appears — press it to continue. Numbers are saved as you type, so nothing is lost.'),
         t('PC 와 휴대폰에 *함께 로그인해도 됩니다.* 다른 곳에 열려 있으면 로그인할 때 알려 주고, *이미 로그인해 있던 화면에도 빨간 경고*가 뜹니다. *내 이름 → 「열려 있는 로그인」* 에서 확인·로그아웃할 수 있습니다.',
           'You *may log in on a PC and a phone at once.* If your account is open elsewhere you are told at login, and you can check or log out others in *your name → "열려 있는 로그인"*.'),
         t('*테스트 기간에도 엑셀 일보는 평소대로 씁니다.* 두 쪽 숫자를 맞춰 보는 것이 이번 시험의 핵심입니다.',

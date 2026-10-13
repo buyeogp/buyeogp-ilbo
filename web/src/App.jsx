@@ -17,6 +17,7 @@ import { TestGuide } from './pages/TestGuide.jsx';
 import { Toasts } from './components/Toasts.jsx';
 import { ChangePassword } from './pages/ChangePassword.jsx';
 import { AccountMenu, Sessions } from './components/AccountMenu.jsx';
+import { SessionGuard } from './components/SessionGuard.jsx';
 import * as live from './live.js';
 
 const FARM_WIDE = ['farm_manager', 'hq_staff', 'hq_manager', 'auditor'];
@@ -75,6 +76,7 @@ function Shell({ me, onSignedOut }) {
       <TopBar me={me} houses={houses} date={date} farmWide={farmWide}
               onSignedOut={() => { live.stop(); onSignedOut(); }} />
       <Toasts me={me} farmWide={farmWide} />
+      <SessionGuard onExpired={() => { live.stop(); onSignedOut(); }} />
       <OtherLogin />
       <NewLoginAlert />
       <main>

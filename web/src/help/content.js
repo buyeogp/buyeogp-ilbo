@@ -559,8 +559,8 @@ export const SECTIONS = [
       { h3: t('인터넷이 잠깐 끊겼다면', 'If the connection drops for a while') },
       { p: t('끊긴 동안 온 알림은 뜨지 않습니다. 대신 *다시 연결되는 순간*과 *다른 창을 보다가 이 창으로 돌아오는 순간* 화면을 한 번 새로 받습니다. 그래도 이상해 보이면 *F5* 를 누릅니다.',
              'Notices sent while you were offline are not shown. Instead the screen reloads *the moment the connection returns* and *when you come back to this window*. If anything still looks wrong, press *F5*.') },
-      { warn: t('알림 연결이 열려 있어도 *로그인은 유지되지 않습니다.* 아무것도 누르지 않으면 팀장 *15분*, 본사 *30분* 뒤 로그아웃됩니다 — 자리를 비운 사이 다른 사람이 쓰지 못하게 하려는 것입니다.',
-                'An open notice connection does *not keep you logged in.* With no activity you are logged out after *15 minutes* (team leads) or *30 minutes* (head office) — so nobody else can use your account while you are away.') },
+      { warn: t('알림 연결이 열려 있어도 *로그인은 유지되지 않습니다.* 아무것도 누르지 않으면 *1시간* 뒤 로그아웃됩니다 — 자리를 비운 사이 다른 사람이 쓰지 못하게 하려는 것입니다. *2분 전*에 화면 위에 「자동 로그아웃됩니다 [계속 사용]」 이 뜨고, 누르면 이어서 씁니다. 로그아웃되면 *바로 로그인 화면*으로 바뀝니다 (입력한 값은 이미 저장돼 있습니다).',
+                'An open notice connection does *not keep you logged in.* With no activity you are logged out after *1 hour* — so nobody else can use your account while you are away. *2 minutes before*, a notice "자동 로그아웃됩니다 [계속 사용]" appears at the top; press it to keep working. When you are logged out the screen *switches to login at once* (what you typed is already saved).') },
     ],
   },
 

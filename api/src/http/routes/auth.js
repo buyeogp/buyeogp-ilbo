@@ -5,7 +5,7 @@ import { Router } from 'express';
 import { login, logout, siblingSessions, cookieOptions, deviceLabel, mySessions, revokeOthers }
   from '../../auth/session.js';
 import { config } from '../../config.js';
-import { HttpError, requireAuth, wrap } from '../middleware.js';
+import { HttpError, requireAuth, sessionExp, wrap } from '../middleware.js';
 import { hashPassword, passwordProblem, verifyPassword } from '../../auth/password.js';
 import { adminConfigured, atx } from '../../db/adminPool.js';
 import { publishToUser } from '../../events.js';
@@ -118,4 +118,13 @@ authRouter.get('/sessions', requireAuth, wrap(async (req, res) => {
 
 authRouter.post('/sessions/revoke-others', requireAuth, wrap(async (req, res) => {
   res.json({ revoked: await revokeOthers(req.user.userId, req.user.sessionId) });
+}));
+
+/**
+ * 언제 로그아웃되나 — 세션을 **연장하지 않는다** (NO_TOUCH).
+ * 화면은 「2분 전 안내」를 띄우기 직전과 0초에 이것으로 한 번 더 확인한다. 같은 계정을 다른
+ * 탭·기기에서 쓰고 있으면 서버 쪽 시각이 이미 늦춰져 있으므로, 안내를 띄우지 않고 그 시각을 따른다.
+ */
+authRouter.get('/session', requireAuth, wrap(async (req, res) => {
+  res.json({ exp: sessionExp(req.user).toISOString(), now: new Date().toISOString() });
 }));

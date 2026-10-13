@@ -22,15 +22,26 @@ export class HttpError extends Error {
 }
 
 /** 쿠키를 보고 req.user 를 채운다. 없으면 그냥 비워 둔다 (거절은 requireAuth 가) */
-export async function attachUser(req, _res, next) {
+// 이 주소는 세션을 연장하지 않는다 — 「언제 로그아웃되나」를 묻기만 하는 곳
+// 실시간 알림 연결도 활동이 아니다 — 다시 붙을 때마다 연장되면 무조작 로그아웃이 밀린다
+const NO_TOUCH = ['/api/auth/session', '/api/events'];
+
+export async function attachUser(req, res, next) {
   try {
-    req.user = await resolve(req.cookies?.[config.session.cookie]);
+    const touch = !NO_TOUCH.includes((req.originalUrl || '').split('?')[0]);
+    req.user = await resolve(req.cookies?.[config.session.cookie], { touch });
+    // 화면이 「2분 전 안내」를 띄우려고 매 응답에서 만료 시각을 읽는다 (같은 주소라 그대로 읽힌다)
+    if (req.user) res.set('X-Session-Exp', sessionExp(req.user).toISOString());
     next();
   } catch (e) { next(e); }
 }
 
+/** 무조작 만료와 절대 만료 중 이른 쪽 */
+export const sessionExp = (u) => new Date(Math.min(
+  new Date(u.idleExp).getTime(), new Date(u.absoluteExp).getTime()));
+
 // 비밀번호를 바꾸기 전에도 쓸 수 있는 곳 — 나는 누구인가 · 바꾸기 · 나가기
-const BEFORE_CHANGE = ['/api/auth/me', '/api/auth/password', '/api/auth/logout'];
+const BEFORE_CHANGE = ['/api/auth/me', '/api/auth/password', '/api/auth/logout', '/api/auth/session'];
 
 export function requireAuth(req, _res, next) {
   if (!req.user) {

@@ -122,7 +122,7 @@ try {
   ck('로그인 성공', ok.status === 200, JSON.stringify(ok.body).slice(0, 80));
   ck('쿠키 발급', cookie.startsWith(config.session.cookie + '='));
   ck('역할 전달', ok.body?.user?.roles?.includes('team_lead'));
-  ck('현장 세션은 15분', ok.body?.session?.idleLimitSec === 900,
+  ck('현장 세션은 60분 (발주처 요구 2026-10-13)', ok.body?.session?.idleLimitSec === 3600,
     `실제 ${ok.body?.session?.idleLimitSec}`);
 
   // 같은 계정 두 곳 — 막지 않고 알린다 (§6.4)
@@ -157,6 +157,22 @@ try {
     ck('끊긴 쪽은 401', (await call('GET', '/api/auth/me')).status === 401);
     cookie = keep;
     ck('이 기기는 그대로', (await call('GET', '/api/auth/me')).status === 200);
+  }
+
+  // 만료 시각 — 매 응답에 실리고, /auth/session 은 묻기만 하고 연장하지 않는다
+  {
+    const h1 = await fetch(base + '/api/auth/me', { headers: { cookie } });
+    const exp1 = h1.headers.get('x-session-exp');
+    ck('응답에 만료 시각이 실린다', !!exp1 && new Date(exp1) > new Date(), exp1);
+    ck('무조작 한도 60분', Math.abs(new Date(exp1) - Date.now() - 60 * 60 * 1000) < 60 * 1000,
+      `남은 ${Math.round((new Date(exp1) - Date.now()) / 60000)}분`);
+    await new Promise((ok) => setTimeout(ok, 1100));
+    const s1 = await call('GET', '/api/auth/session');
+    const s2 = await call('GET', '/api/auth/session');
+    // 헤더 시각은 Node 가, /session 시각은 DB 가 계산한다 — 시계가 1초 안쪽으로 어긋날 수 있다.
+    // 연장됐다면 1.1초 기다린 만큼 뒤로 밀리므로 「두 번 물은 값이 같다」가 본 판정이다
+    ck('만료 시각 묻기는 세션을 연장하지 않는다', s1.body?.exp === s2.body?.exp
+      && Math.abs(new Date(s1.body?.exp) - new Date(exp1)) < 2000, `${s1.body?.exp} / ${s2.body?.exp} / ${exp1}`);
   }
 
   const me = await call('GET', '/api/auth/me');

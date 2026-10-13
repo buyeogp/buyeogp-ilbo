@@ -61,9 +61,9 @@ export const config = {
 
   session: {
     cookie: 'buyeogp_sid',
-    // §6.7 세션 만료 — 현장 15분 / 본사 30분
-    idleFieldSec: Number(env.SESSION_TIMEOUT_FIELD_MIN ?? 15) * 60,
-    idleHqSec: Number(env.SESSION_TIMEOUT_HQ_MIN ?? 30) * 60,
+    // 2026-10-13 발주처 요구로 현장·본사 모두 60분 (설계문서 §6.7 은 15 / 30분이었다)
+    idleFieldSec: Number(env.SESSION_TIMEOUT_FIELD_MIN ?? 60) * 60,
+    idleHqSec: Number(env.SESSION_TIMEOUT_HQ_MIN ?? 60) * 60,
     absoluteHours: Number(env.SESSION_ABSOLUTE_HOURS ?? 12),
     secure: (env.APP_BASE_URL ?? '').startsWith('https://'),
   },

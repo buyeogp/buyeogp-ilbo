@@ -76,15 +76,20 @@ export async function login({ loginId, password, ip, userAgent }) {
  * 쿠키 토큰으로 현재 사용자를 찾는다.
  * 살아 있으면 마지막 활동 시각을 민다 — 이게 무조작 잠금의 기준이다.
  */
-export async function resolve(token) {
+export async function resolve(token, { touch = true } = {}) {
   if (!token) return null;
   return anon(async (q) => {
     const s = await q.one(
-      `SELECT id, user_id, login_id, name, idle_exp, absolute_exp
+      `SELECT id, user_id, login_id, name, idle_exp, absolute_exp, idle_limit_s
          FROM sec.v_active_session WHERE token_hash = $1`, [sha256(token)]);
     if (!s) return null;
 
-    await q('UPDATE sec.session SET last_seen_at = now() WHERE id = $1', [s.id]);
+    // touch=false — 「언제 끝나나」만 묻는 요청은 활동이 아니다. 묻는 것만으로 연장되면
+    // 2분 전 안내가 스스로 만료를 미뤄 영영 로그아웃되지 않는다
+    if (touch) {
+      await q('UPDATE sec.session SET last_seen_at = now() WHERE id = $1', [s.id]);
+      s.idle_exp = new Date(Date.now() + s.idle_limit_s * 1000);
+    }
     const must = await q.one(
       'SELECT must_change_password AS m FROM sec.app_user WHERE id = $1', [s.user_id]);
 
